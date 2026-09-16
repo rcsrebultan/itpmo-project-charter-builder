@@ -439,90 +439,77 @@ function generateJSON() {
 
 async function generateDocx() {
 
-    if (!window.docx) {
-        alert("The Word document generator could not be loaded. Check your internet connection and try again.");
+    if (!window.JSZip) {
+        alert("The Word template tools could not be loaded. Check your internet connection and try again.");
         return;
     }
 
     const data = collectProjectData();
-    const {
-        Document,
-        HeadingLevel,
-        Packer,
-        Paragraph,
-        Table,
-        TableCell,
-        TableRow,
-        TextRun,
-        WidthType
-    } = window.docx;
+    const response = await fetch("assets/project-charter-template.docx");
+    const zip = await JSZip.loadAsync(await response.arrayBuffer());
+    const xmlText = await zip.file("word/document.xml").async("string");
+    const xml = new DOMParser().parseFromString(xmlText, "application/xml");
+    const namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+    const rows = [...xml.getElementsByTagNameNS(namespace, "tbl")[0]
+        .getElementsByTagNameNS(namespace, "tr")];
 
-    const text = value => value || "";
-    const labeledParagraph = (label, value) => new Paragraph({
-        children: [
-            new TextRun({ text: `${label}: `, bold: true }),
-            new TextRun(text(value))
-        ]
-    });
+    const cellText = (cell, value) => {
+        const paragraphs = [...cell.getElementsByTagNameNS(namespace, "p")];
+        const paragraph = paragraphs[0];
+        if (!paragraph) return;
 
-    const teamRows = [
-        new TableRow({
-            children: ["Name", "Role", "Solution HO", "Date"]
-                .map(value => new TableCell({
-                    children: [new Paragraph({
-                        children: [new TextRun({ text: value, bold: true })]
-                    })]
-                }))
-        }),
-        ...data.teamMembers
-            .filter(member => Object.values(member).some(Boolean))
-            .map(member => new TableRow({
-                children: [member.name, member.role, member.solutionHO, member.date]
-                    .map(value => new TableCell({ children: [new Paragraph(text(value))] }))
-            }))
-    ];
+        paragraphs.slice(1).forEach(item => item.remove());
+        [...paragraph.childNodes]
+            .filter(node => node.localName === "r")
+            .forEach(run => run.remove());
 
-    const riskRows = [
-        new TableRow({
-            children: ["Identified Risk", "Mitigation Plan"]
-                .map(value => new TableCell({
-                    children: [new Paragraph({
-                        children: [new TextRun({ text: value, bold: true })]
-                    })]
-                }))
-        }),
-        ...data.risks
-            .filter(risk => risk.risk || risk.mitigation)
-            .map(risk => new TableRow({
-                children: [risk.risk, risk.mitigation]
-                    .map(value => new TableCell({ children: [new Paragraph(text(value))] }))
-            }))
-    ];
+        const run = xml.createElementNS(namespace, "w:r");
+        const text = xml.createElementNS(namespace, "w:t");
+        text.setAttributeNS("http://www.w3.org/XML/1998/namespace", "xml:space", "preserve");
+        text.textContent = value || "";
+        run.appendChild(text);
+        paragraph.appendChild(run);
+    };
 
-    const document = new Document({
-        sections: [{
-            children: [
-                new Paragraph({ text: "Project Charter", heading: HeadingLevel.TITLE }),
-                labeledParagraph("Project Name", data.projectName),
-                labeledParagraph("EDR Number", data.edrNumber),
-                labeledParagraph("Project Summary", data.projectSummary),
-                labeledParagraph("Project Manager", data.projectManager),
-                labeledParagraph("IT Solution Architect", data.solutionArchitect),
-                labeledParagraph("Delivery Location", data.deliveryLocation),
-                labeledParagraph("Work Type", data.workType),
-                new Paragraph({ text: "Project Scope", heading: HeadingLevel.HEADING_1 }),
-                new Paragraph(text(data.projectScope)),
-                new Paragraph({ text: "Deliverables", heading: HeadingLevel.HEADING_1 }),
-                new Paragraph(text(data.deliverables)),
-                new Paragraph({ text: "Team Members / Resources / EDR", heading: HeadingLevel.HEADING_1 }),
-                new Table({ rows: teamRows, width: { size: 100, type: WidthType.PERCENTAGE } }),
-                new Paragraph({ text: "Identified Risks", heading: HeadingLevel.HEADING_1 }),
-                new Table({ rows: riskRows, width: { size: 100, type: WidthType.PERCENTAGE } })
-            ]
-        }]
-    });
+    const cells = rowIndex => [...rows[rowIndex].getElementsByTagNameNS(namespace, "tc")];
+    const set = (rowIndex, cellIndex, value) => cellText(cells(rowIndex)[cellIndex], value);
 
-    const blob = await Packer.toBlob(document);
+    set(0, 0, `Project Charter - ${data.projectName || ""}`);
+    set(1, 1, data.projectName);
+    set(2, 1, data.projectSummary);
+    set(3, 1, data.projectManager);
+    set(3, 3, data.solutionArchitect);
+    set(4, 1, data.deliveryLocation);
+    set(4, 3, data.workType);
+    set(6, 0, data.projectScope);
+    set(6, 1, data.deliverables);
+
+    const teamMembers = data.teamMembers
+        .filter(member => Object.values(member).some(Boolean));
+
+    for (let index = 0; index < 7; index++) {
+        const member = teamMembers[index] || {};
+        const rowIndex = 16 + index;
+        set(rowIndex, 0, member.name);
+        set(rowIndex, 1, member.role);
+        set(rowIndex, 2, member.solutionHO);
+        set(rowIndex, 3, member.date);
+    }
+
+    const risks = data.risks
+        .filter(risk => risk.risk || risk.mitigation)
+        .map(risk => `Risk: ${risk.risk || ""}\nMitigation: ${risk.mitigation || ""}`)
+        .join("\n\n");
+
+    set(23, 0, "Identified Risks and Mitigation");
+    set(24, 0, risks);
+    for (let index = 23; index < 29; index++) {
+        if (index !== 24) set(index, 1, "");
+        set(index, 2, "");
+    }
+
+    zip.file("word/document.xml", new XMLSerializer().serializeToString(xml));
+    const blob = await zip.generateAsync({ type: "blob" });
     const downloadUrl = URL.createObjectURL(blob);
     const link = window.document.createElement("a");
     link.href = downloadUrl;
