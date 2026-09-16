@@ -823,7 +823,56 @@ async function populateFromGemini(documentContent) {
     const technologySection = documentContent.sections
         .find(section => /technology solution summary/i.test(section.text));
     const sourceText = technologySection?.text || documentContent.text;
-    const promptText = `Extract explicit facts only. Do not guess or invent. Missing values must be empty. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, projectManager, solutionArchitect. Use the explicit document title below for projectName. Put the complete Technology Solution Summary content into projectScope, not projectSummary. Format projectScope as separate sections using this exact style: Network:\n- detail\n- detail\n\nInternet:\n- detail. Use the actual section headings found in the document, preserve all details, and keep one detail per bullet line. Leave projectSummary empty because no separate project summary was requested. Return plain text only inside string values. Do not return HTML tags such as div, ul, or li.\n\nDOCUMENT TITLE:\n${documentContent.title}\n\nTECHNOLOGY SUMMARY:\n${sourceText.slice(0, 7000)}`;
+    const summarySection = documentContent.sections
+        .find(section => /high level summary|general solution information|delivery center/i.test(section.text));
+    const summaryText = summarySection?.text || documentContent.text;
+    const promptText = `Extract only facts from the supplied document. Do not invent names, dates, numbers, or locations. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, projectManager, solutionArchitect.
+
+Use the explicit document title for projectName. Format projectSummary exactly with these labels, one per line, leaving a value blank when it is not stated:
+Site: [value]
+LOB: [value]
+Scope: [value]
+Seats: [value]
+HC: [value]
+Training start date (CET or PST): [value]
+Nesting/Go-live: [value]
+
+Put the complete Technology Solution Summary into projectScope, not projectSummary. Preserve every actual topic found in that summary and format it as separate sections with one detail per bullet, for example:
+Network:
+- detail
+- detail
+
+Internet:
+- detail
+
+Use the actual headings from the document, including Network, Internet, Information Security, BC/DR, Tools & Applications, Voice Solution, Deskside, and Others when present. Do not include HTML tags.
+
+For deliverables, create a plain-text task list with exactly these workstreams and derive practical tasks from the documented requirements. Do not invent project-specific facts:
+Network:
+- task
+
+Network Security:
+- task
+
+Server:
+- task
+
+IT Operations:
+- task
+
+Voice and Telephony:
+- task
+
+If a workstream has no supporting requirement, leave its task list blank. Return plain text only inside all string values.
+
+DOCUMENT TITLE:
+${documentContent.title}
+
+HIGH-LEVEL SOURCE:
+${summaryText.slice(0, 3500)}
+
+TECHNOLOGY SUMMARY:
+${sourceText.slice(0, 6500)}`;
     let response;
 
     try {
