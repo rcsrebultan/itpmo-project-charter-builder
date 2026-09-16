@@ -88,6 +88,11 @@ function buildNavigation() {
 
         nextBtn.className = "primary-btn";
 
+        if (index === 0) {
+            nextBtn.classList.add("upload-next");
+            nextBtn.hidden = true;
+        }
+
         nextBtn.innerText =
             index === sections.length - 1
             ? "Finish"
@@ -97,7 +102,11 @@ function buildNavigation() {
 
             if (currentStep < sections.length - 1) {
                 if (index === 0) {
-                    await handleUploadNext();
+                    if (section.dataset.analysisReady === "true") {
+                        showStep(1);
+                    } else {
+                        await handleUploadNext();
+                    }
                 } else {
                     showStep(currentStep + 1);
                 }
@@ -634,6 +643,7 @@ async function handleDocumentAnalysis() {
     const fileInput = document.querySelector('.upload-area input[type="file"]');
     const files = [...(fileInput?.files || [])];
     const analyzeButton = document.querySelector('[data-action="analyze-document"]');
+    const uploadSection = document.querySelector(".upload-area")?.closest(".card");
 
     if (!files.length) {
         showStep(1);
@@ -646,12 +656,14 @@ async function handleDocumentAnalysis() {
         setAIStatus("Reading the uploaded document locally...", "working");
         const documentContent = await extractDocumentContent(files);
         await populateFromGemini(documentContent);
-        setAIStatus("Analysis complete. Review and edit the populated fields.", "success");
-        showStep(1);
+        if (uploadSection) uploadSection.dataset.analysisReady = "true";
+        document.querySelector(".upload-next")?.removeAttribute("hidden");
+        setAIStatus("Analysis successful. Review the populated fields, then click Next to continue.", "success");
     } catch (error) {
         console.error(error);
+        if (uploadSection) uploadSection.dataset.analysisReady = "false";
+        document.querySelector(".upload-next")?.setAttribute("hidden", "true");
         setAIStatus(`AI analysis was unavailable. You can still complete the form manually. (${error.message})`, "error");
-        showStep(1);
     } finally {
         if (analyzeButton) analyzeButton.disabled = false;
     }
