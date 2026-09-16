@@ -532,7 +532,7 @@ async function generateDocx() {
     set(0, 0, charterName);
     set(1, 1, data.projectName);
     set(2, 1, data.projectSummary);
-    set(3, 1, data.projectManager);
+    set(3, 1, "");
     set(3, 3, data.solutionArchitect);
     set(4, 1, data.deliveryLocation);
     set(4, 3, data.workType);
@@ -851,17 +851,16 @@ async function populateFromGemini(documentContent) {
             projectScope: { type: "string" },
             deliverables: { type: "string" },
             workType: { type: "string" },
-            projectManager: { type: "string" },
             solutionArchitect: { type: "string" }
         },
         required: [
             "projectName", "projectSummary", "projectScope", "deliverables",
-            "workType", "projectManager", "solutionArchitect"
+            "workType", "solutionArchitect"
         ],
         additionalProperties: false
     };
 
-    const promptText = `Extract only facts from the supplied document. Do not invent names, dates, numbers, or locations. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, workType, projectManager, solutionArchitect.
+    const promptText = `Extract only facts from the supplied document. Do not invent names, dates, numbers, or locations. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, workType, solutionArchitect.
 
 Use the explicit document title for projectName. If the title starts with "Technology Solution for", remove that phrase and keep only the client name as projectName. Format projectSummary exactly with these labels, one per line. Put a value after the colon only when that value is explicitly stated in the document; otherwise leave it empty. Do not write an introduction, explanation, summary paragraph, or any text outside these eight labels. Do not use square brackets, commas between fields, or HTML:
 Location:
