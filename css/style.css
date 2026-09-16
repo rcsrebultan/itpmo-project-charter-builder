@@ -292,6 +292,15 @@ textarea {
     gap: 20px;
 }
 
+.scope-grid {
+
+    display: grid;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 20px;
+}
+
 /* ========================================
    BUTTONS
 ======================================== */
@@ -472,14 +481,14 @@ textarea {
 
     display: grid;
 
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
 
     gap: 15px;
 }
 
 .team-card .remove-btn {
-    grid-column: 1 / -1;
-    justify-self: start;
+    align-self: start;
+    justify-self: end;
 }
 
 .timeline-grid {
@@ -559,8 +568,12 @@ textarea {
         grid-template-columns: 1fr;
     }
 
+    .scope-grid {
+        grid-template-columns: 1fr;
+    }
+
     .team-card {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     }
 }
 
