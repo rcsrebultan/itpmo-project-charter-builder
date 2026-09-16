@@ -960,7 +960,10 @@ ${documentContent.text}`;
     try {
         data = parseAIJson(response);
     } catch (error) {
-        throw new Error("Gemini returned an unreadable response instead of structured fields");
+        data = recoverAIFields(response);
+        if (!data) {
+            throw new Error("Gemini returned an unreadable response instead of structured fields");
+        }
     }
 
     sanitizeAIValues(data);
@@ -1398,7 +1401,12 @@ function cleanProjectName(value) {
 
 function parseAIJson(value) {
 
-    if (value && typeof value === "object") return value;
+    if (value && typeof value === "object") {
+        if (typeof value.text === "string") return parseAIJson(value.text);
+        if (typeof value.output === "string") return parseAIJson(value.output);
+        if (value.content && typeof value.content === "string") return parseAIJson(value.content);
+        return value;
+    }
     if (typeof value !== "string") throw new Error("AI response was not text or an object");
 
     const cleaned = value
@@ -1419,6 +1427,39 @@ function parseAIJson(value) {
         throw new Error("AI response JSON was not an object");
     }
     return parsed;
+
+}
+
+function recoverAIFields(value) {
+
+    const text = typeof value === "string"
+        ? value
+        : value?.text || value?.output || value?.content || "";
+    if (!text) return null;
+
+    const fieldNames = [
+        "projectName",
+        "projectSummary",
+        "projectScope",
+        "deliverables",
+        "workType",
+        "solutionArchitect"
+    ];
+    const recovered = {};
+
+    fieldNames.forEach((fieldName, index) => {
+        const nextFields = fieldNames.slice(index + 1).join("|");
+        const match = text.match(new RegExp(
+            `["']?${fieldName}["']?\\s*:\\s*["']([\\s\\S]*?)["']\\s*(?=,?\\s*["']?(?:${nextFields})["']?\\s*:|\\s*[,}]|$)`,
+            "i"
+        ));
+        if (match?.[1]) recovered[fieldName] = match[1]
+            .replace(/\\n/g, "\n")
+            .replace(/\\"/g, '"')
+            .trim();
+    });
+
+    return Object.keys(recovered).length ? recovered : null;
 
 }
 
