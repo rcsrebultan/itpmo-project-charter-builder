@@ -29,6 +29,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     initializeRiskSection();
 
+    initializeDatePickers();
+
     initializeFileUpload();
 
     initializeDraftStorage();
@@ -542,7 +544,7 @@ async function generateDocx() {
         data.cet,
         data.pst,
         data.goLive
-    ].map(value => typeof value === "string" ? value.trim() : "");
+    ].map(formatTimelineDate);
 
     for (let index = 0; index < 8; index++) {
         const member = teamMembers[index] || {};
@@ -1215,5 +1217,50 @@ function extractWorkType(value) {
     return match?.[0]
         ?.replace(/^.*?:\s*/i, "")
         .trim() || "";
+
+}
+
+function initializeDatePickers() {
+
+    document.querySelectorAll(".date-input").forEach(container => {
+        const displayInput = container.querySelector('[data-field]');
+        const nativeInput = container.querySelector(".native-date-input");
+        const calendarButton = container.querySelector(".calendar-btn");
+
+        if (!displayInput || !nativeInput || !calendarButton) return;
+
+        calendarButton.addEventListener("click", () => {
+            if (typeof nativeInput.showPicker === "function") {
+                nativeInput.showPicker();
+            } else {
+                nativeInput.click();
+            }
+        });
+
+        nativeInput.addEventListener("change", () => {
+            displayInput.value = formatTimelineDate(nativeInput.value);
+        });
+    });
+
+}
+
+function formatTimelineDate(value) {
+
+    const text = typeof value === "string" ? value.trim() : "";
+    if (!text) return "";
+
+    const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const date = isoMatch
+        ? new Date(Date.UTC(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3])))
+        : new Date(text);
+
+    if (Number.isNaN(date.getTime())) return text;
+
+    const months = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+
+    return `${String(date.getUTCDate()).padStart(2, "0")}-${months[date.getUTCMonth()]}-${date.getUTCFullYear()}`;
 
 }
