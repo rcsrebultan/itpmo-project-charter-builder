@@ -812,7 +812,7 @@ async function populateFromGemini(documentContent) {
     const technologySection = documentContent.sections
         .find(section => /technology solution summary/i.test(section.text));
     const sourceText = technologySection?.text || documentContent.text;
-    const promptText = `Extract explicit facts only. Do not guess or invent. Missing values must be empty. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, projectManager, solutionArchitect. Use the explicit document title below for projectName. Copy all text and headings from the Technology Solution Summary section into projectSummary. Preserve topic headings, bullet lines, and line breaks; do not shorten it to a title.\n\nDOCUMENT TITLE:\n${documentContent.title}\n\nTECHNOLOGY SUMMARY:\n${sourceText.slice(0, 7000)}`;
+    const promptText = `Extract explicit facts only. Do not guess or invent. Missing values must be empty. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, projectManager, solutionArchitect. Use the explicit document title below for projectName. Copy all text and headings from the Technology Solution Summary section into projectSummary. Preserve topic headings, bullet lines, and line breaks; do not shorten it to a title. Return plain text only inside string values. Do not return HTML tags such as div, ul, or li.\n\nDOCUMENT TITLE:\n${documentContent.title}\n\nTECHNOLOGY SUMMARY:\n${sourceText.slice(0, 7000)}`;
     let response;
 
     try {
@@ -865,7 +865,9 @@ function applyExtractedData(data) {
     Object.entries(data).forEach(([name, value]) => {
         if (name === "teamMembers" || name === "risks") return;
         const field = document.querySelector(`[data-field="${name}"]`);
-        if (field && !field.value && typeof value === "string") field.value = value;
+        if (field && !field.value && typeof value === "string") {
+            field.value = cleanExtractedText(value);
+        }
     });
 
     const teamMembers = (data.teamMembers || []).filter(member => member.name || member.role);
@@ -902,5 +904,27 @@ async function prepareAIImage(blob) {
     } catch (error) {
         return blob;
     }
+
+}
+
+function cleanExtractedText(value) {
+
+    if (!/<[a-z][\s\S]*>/i.test(value)) return value.trim();
+
+    const markedText = value
+        .replace(/<li[^>]*>/gi, "\n• ")
+        .replace(/<\/li>/gi, "\n")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/?(div|p|h[1-6]|ul|ol)[^>]*>/gi, "\n")
+        .replace(/<[^>]+>/g, "");
+    const decodedText = new DOMParser()
+        .parseFromString(markedText, "text/html")
+        .body
+        .textContent;
+
+    return decodedText
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
 
 }
