@@ -426,9 +426,14 @@ textarea {
 
     display: grid;
 
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
 
     gap: 15px;
+}
+
+.team-card .remove-btn {
+    grid-column: 1 / -1;
+    justify-self: start;
 }
 
 /* ========================================
@@ -500,7 +505,7 @@ textarea {
     }
 
     .team-card {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
     }
 }
 
@@ -543,6 +548,10 @@ textarea {
 
     .review-actions {
         flex-direction: column;
+    }
+
+    .team-card {
+        grid-template-columns: 1fr;
     }
 }
 

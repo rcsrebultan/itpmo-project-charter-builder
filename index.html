@@ -70,7 +70,8 @@
                 <p>Create project charters faster using AI-assisted extraction.</p>
             </div>
 
-            <button class="primary-btn">
+            <button class="primary-btn" type="button">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
                 Generate Charter
             </button>
 
@@ -115,39 +116,50 @@
 
                 <div class="field">
                     <label>Project Name</label>
-                    <input type="text">
+                    <input type="text" data-field="projectName">
                 </div>
 
                 <div class="field">
                     <label>EDR Number</label>
-                    <input type="text">
+                    <input type="text" data-field="edrNumber">
                 </div>
 
                 <div class="field">
-                    <label>Client</label>
-                    <input type="text">
+                    <label>Delivery Location</label>
+                    <input type="text" data-field="deliveryLocation">
+                </div>
+
+                <div class="field">
+                    <label>Work Type</label>
+                    <input type="text" data-field="workType" placeholder="WAH, B&M or both">
+
                 </div>
 
                 <div class="field">
                     <label>Project Manager</label>
-                    <input type="text">
+                    <input type="text" data-field="projectManager">
+                </div>
+
+                <div class="field">
+                    <label>IT Solution Architect</label>
+                    <input type="text" data-field="solutionArchitect">
                 </div>
 
             </div>
 
             <div class="field">
-                <label>Project Description</label>
-                <textarea rows="5"></textarea>
+                <label>Project Summary</label>
+                <textarea rows="5" data-field="projectSummary"></textarea>
             </div>
 
             <div class="field">
                 <label>Business Justification</label>
-                <textarea rows="4"></textarea>
+                <textarea rows="4" data-field="businessJustification"></textarea>
             </div>
 
             <div class="field">
                 <label>Objectives</label>
-                <textarea rows="4"></textarea>
+                <textarea rows="4" data-field="objectives"></textarea>
             </div>
 
         </section>
@@ -159,23 +171,23 @@
             <h2>Scope Definition</h2>
 
             <div class="field">
-                <label>In Scope</label>
-                <textarea rows="5"></textarea>
+                <label>Project Scope</label>
+                <textarea rows="5" data-field="projectScope"></textarea>
             </div>
 
             <div class="field">
-                <label>Out of Scope</label>
-                <textarea rows="5"></textarea>
+                <label>Deliverables</label>
+                <textarea rows="5" data-field="deliverables"></textarea>
             </div>
 
             <div class="field">
                 <label>Assumptions</label>
-                <textarea rows="4"></textarea>
+                <textarea rows="4" data-field="assumptions"></textarea>
             </div>
 
             <div class="field">
                 <label>Constraints</label>
-                <textarea rows="4"></textarea>
+                <textarea rows="4" data-field="constraints"></textarea>
             </div>
 
         </section>
@@ -199,9 +211,15 @@
 
                 <div class="team-card">
 
-                    <input placeholder="Name">
+                    <input type="text" data-team-field="name" placeholder="Name">
 
-                    <input placeholder="Role">
+                    <input type="text" data-team-field="role" placeholder="Role">
+
+                    <input type="text" data-team-field="solutionHO" placeholder="Solution HO">
+
+                    <input type="text" data-team-field="date" placeholder="Date">
+
+                    <button class="remove-btn" type="button">Remove</button>
 
                 </div>
 
@@ -235,7 +253,7 @@
 
                         <label>Risk</label>
 
-                        <textarea rows="3"></textarea>
+                        <textarea rows="3" data-risk-field="risk"></textarea>
 
                     </div>
 
@@ -243,7 +261,7 @@
 
                         <label>Mitigation</label>
 
-                        <textarea rows="3"></textarea>
+                        <textarea rows="3" data-risk-field="mitigation" placeholder="Mitigation plan"></textarea>
 
                     </div>
 
@@ -269,7 +287,7 @@
                     Save Draft
                 </button>
 
-                <button class="primary-btn">
+                <button class="primary-btn" type="button">
                     Generate Word Charter
                 </button>
 

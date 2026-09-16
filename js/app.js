@@ -132,6 +132,17 @@ function initializeTeamSection() {
 
     addBtn.addEventListener("click", addTeamMember);
 
+    document
+        .querySelectorAll(".team-card")
+        .forEach(initializeTeamCard);
+
+}
+
+function initializeTeamCard(card) {
+
+    card.querySelector(".remove-btn")
+        ?.addEventListener("click", () => card.remove());
+
 }
 
 function addTeamMember() {
@@ -146,11 +157,23 @@ function addTeamMember() {
     memberCard.innerHTML = `
         <input
             type="text"
+            data-team-field="name"
             placeholder="Name">
 
         <input
             type="text"
+            data-team-field="role"
             placeholder="Role">
+
+        <input
+            type="text"
+            data-team-field="solutionHO"
+            placeholder="Solution HO">
+
+        <input
+            type="text"
+            data-team-field="date"
+            placeholder="Date">
 
         <button
             class="remove-btn">
@@ -333,15 +356,13 @@ function initializeFileUpload() {
 function collectProjectData() {
 
     const inputs =
-        document.querySelectorAll(
-            "input, textarea, select"
-        );
+        document.querySelectorAll("[data-field]");
 
     const data = {};
 
-    inputs.forEach((input, index) => {
+    inputs.forEach(input => {
 
-        data[`field_${index}`] =
+        data[input.dataset.field] =
             input.value;
 
     });
@@ -352,13 +373,16 @@ function collectProjectData() {
         .querySelectorAll(".team-card")
         .forEach(card => {
 
-            const fields =
-                card.querySelectorAll("input");
+            const field = name =>
+                card.querySelector(`[data-team-field="${name}"]`)
+                    ?.value || "";
 
             teamMembers.push({
 
-                name: fields[0]?.value || "",
-                role: fields[1]?.value || ""
+                name: field("name"),
+                role: field("role"),
+                solutionHO: field("solutionHO"),
+                date: field("date")
 
             });
 
@@ -370,16 +394,14 @@ function collectProjectData() {
         .querySelectorAll(".risk-card")
         .forEach(card => {
 
-            const textareas =
-                card.querySelectorAll("textarea");
+            const field = name =>
+                card.querySelector(`[data-risk-field="${name}"]`)
+                    ?.value || "";
 
             risks.push({
 
-                risk:
-                    textareas[0]?.value || "",
-
-                mitigation:
-                    textareas[1]?.value || ""
+                risk: field("risk"),
+                mitigation: field("mitigation")
 
             });
 
