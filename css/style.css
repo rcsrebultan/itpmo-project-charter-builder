@@ -555,6 +555,23 @@ textarea {
 
 .risk-card {
 
+    display: grid;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 20px;
+}
+
+.risk-card .field {
+    margin-bottom: 0;
+}
+
+.risk-add-btn {
+    margin-top: 20px;
+}
+
+.risk-card {
+
     background: #1e293b;
 
     border: 1px solid var(--border-color);
@@ -562,6 +579,11 @@ textarea {
     border-radius: 12px;
 
     padding: 18px;
+}
+
+.risk-card .remove-btn {
+    grid-column: 1 / -1;
+    justify-self: start;
 }
 
 /* ========================================
@@ -672,6 +694,14 @@ textarea {
         grid-template-columns: 1fr;
         grid-template-rows: none;
         grid-auto-flow: row;
+    }
+
+    .risk-card {
+        grid-template-columns: 1fr;
+    }
+
+    .risk-card .remove-btn {
+        grid-column: auto;
     }
 }
 
