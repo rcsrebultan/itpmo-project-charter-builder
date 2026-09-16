@@ -875,7 +875,9 @@ async function populateFromGemini(documentContent) {
         additionalProperties: false
     };
 
-    const promptText = `Extract only facts from the supplied document. Do not invent names, dates, numbers, or locations. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, workType, solutionArchitect.
+    const promptText = `Extract only facts from the supplied document. Do not invent, infer, guess, or hallucinate any value. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, workType, solutionArchitect.
+
+If a value is not explicitly present in the document, return an empty string for that field. Never return explanations, disclaimers, search instructions, or phrases such as "not explicitly mentioned", "not found", "unknown", "not available", or "consulting from". Missing data must remain blank.
 
 Use the explicit document title for projectName. If the title starts with "Technology Solution for", remove that phrase and keep only the client name as projectName. Format projectSummary exactly with these labels, one per line. Put a value after the colon only when that value is explicitly stated in the document; otherwise leave it empty. Do not write an introduction, explanation, summary paragraph, or any text outside these eight labels. Do not use square brackets, commas between fields, or HTML:
 Location:
@@ -965,6 +967,7 @@ ${documentContent.text}`;
         throw new Error("Gemini returned an unreadable response instead of structured fields");
     }
 
+    sanitizeAIValues(data);
     data.workType = data.workType || extractWorkType(documentContent.text);
     data.solutionArchitect = extractITSA(documentContent.text) || data.solutionArchitect;
 
@@ -1367,6 +1370,18 @@ function parseAIJson(value) {
 
         return JSON.parse(value.slice(start, end + 1));
     }
+
+}
+
+function sanitizeAIValues(data) {
+
+    const nonAnswerPattern = /not\s+(?:explicitly\s+)?mentioned|not\s+found|not\s+available|not\s+provided|unknown|cannot\s+(?:determine|find|identify)|unable\s+to|consulting\s+from|no\s+(?:explicit|specific)\s+(?:value|name|information)/i;
+
+    Object.entries(data).forEach(([name, value]) => {
+        if (typeof value === "string" && nonAnswerPattern.test(value)) {
+            data[name] = "";
+        }
+    });
 
 }
 
