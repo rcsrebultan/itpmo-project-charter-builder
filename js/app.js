@@ -769,7 +769,17 @@ async function extractDocumentContent(files) {
                         .map(node => node.textContent)
                         .join(""))
                     .filter(Boolean);
-                const slideText = slideParagraphs.join("\n");
+                const tableRows = [...xml.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "tr")]
+                    .map(row => [...row.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "tc")]
+                        .map(cell => [...cell.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "t")]
+                            .map(node => node.textContent)
+                            .join(""))
+                        .join(" | "))
+                    .filter(row => row.replace(/\|/g, "").trim());
+                const slideText = [
+                    ...slideParagraphs,
+                    ...(tableRows.length ? ["TABLE ROWS:", ...tableRows] : [])
+                ].join("\n");
                 textParts.push(`PPTX ${file.name}, ${slideName}:\n${slideText}`);
                 sections.push({ label: slideName, text: slideText });
                 if (slideName === "ppt/slides/slide1.xml") titleParts.push(slideText.slice(0, 300));
@@ -896,7 +906,9 @@ Voice and Telephony:
 -
 -
 
-For HC, use explicit non-peak and peak staffing values when present. For HOOP, use explicit weekday and weekend operating hours when present. Return plain text only inside all string values.
+For the project summary, search every slide/page, not only headings that match the field names. A line such as "101 Seats - 80: Agents and 21 Hierarchy" means Seats is 101 and HC is "80: Agents and 21 Hierarchy". Treat Training Date and Training start date as the same field. Treat Go Live, Go-Live, and Nesting/Go-live as the same field. For HC, use explicit non-peak and peak staffing values when present. For HOOP, use explicit weekday and weekend operating hours when present.
+
+For solutionArchitect, use the explicit ITSA or IT Solution Architect value when present. If it is not explicitly labeled, inspect the Document History table: the person listed under the Updated By column is the assigned ITSA for this charter. Return that person's full name. Return plain text only inside all string values.
 
 DOCUMENT TITLE:
 ${documentContent.title}
@@ -939,6 +951,7 @@ ${documentContent.text}`;
     }
 
     data.workType = data.workType || extractWorkType(documentContent.text);
+    data.solutionArchitect = extractITSA(documentContent.text) || data.solutionArchitect;
 
     const populatedCount = Object.entries(data)
         .filter(([name, value]) => !["teamMembers", "risks"].includes(name)
@@ -1162,9 +1175,9 @@ function extractExplicitSummary(documentContent) {
     const deliveryCenterIndex = lines.findIndex(line => /functions and hours of operation/i.test(line));
     const deliveryCenterText = source.match(/Delivery Center[\s\S]*?(?=Data Network Solution|Voice Solution)/i)?.[0] || source;
     const siteMatch = deliveryCenterText.match(/(Philippines|Thailand|India|Mexico|United States|Canada)\s*\n\s*([^\n]+)/i);
-    const site = siteMatch
+    const site = findValue("Site") || (siteMatch
         ? `${siteMatch[1].trim()} - ${siteMatch[2].trim()}`
-        : "";
+        : "");
     const nonPeak = source.match(/HC and Seats Non Peak[^\n]*?Agents\s*[–-]\s*([^;\n]+);\s*Support Staff\s*[–-]\s*([^\n]+)/i);
     const peak = source.match(/HC and Seats Peak[^\n]*?Agents\s*[–-]\s*([^;\n]+);\s*Support Staff\s*[–-]\s*([^\n]+)/i);
     const formatHeadcount = match => match
@@ -1172,20 +1185,26 @@ function extractExplicitSummary(documentContent) {
         : "";
     const nonPeakValue = formatHeadcount(nonPeak);
     const peakValue = formatHeadcount(peak);
-    const hc = [nonPeakValue ? `(non-peak) ${nonPeakValue}` : "", peakValue ? `(peak) ${peakValue}` : ""]
+    const seatLine = source.match(/\b(\d{1,5})\s+Seats?\s*[–-]\s*([^\n]+)/i);
+    const seats = seatLine?.[1] || findValue("Seats");
+    const lineHeadcount = seatLine?.[2]?.trim() || "";
+    const hc = [nonPeakValue ? `(non-peak) ${nonPeakValue}` : "", peakValue ? `(peak) ${peakValue}` : "", lineHeadcount]
         .filter(Boolean)
         .join(" | ");
-    const hoopMatches = [...source.matchAll(/(?:Operating hours are|Weekend operating hours are)\s+([^\n]+)/gi)]
+    const hoopMatches = [...source.matchAll(/(?:Operating hours are|Weekend operating hours are|HOOP\s*:?)\s+([^\n]+)/gi)]
         .map(match => match[1].trim());
     const hoop = hoopMatches.join(" | ");
-    const trainingStart = findValue("Training start");
-    const goLive = findValue("Go-live").replace(/^n\s+/i, "") || findValue("Nesting");
+    const trainingStart = source.match(/(?:Training\s*(?:start\s*)?Date|Training\s*start)\s*:?[\s-–]*((?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,?\s+)\d{4})/i)?.[1]
+        || findValue("Training start");
+    const goLive = source.match(/(?:Go\s*-?\s*Live|Nesting)\s*:?\s*[-–]?\s*([^\n]+)/i)?.[1]?.trim()
+        || findValue("Go-live").replace(/^n\s+/i, "")
+        || findValue("Nesting");
 
     return [
         `Site: ${site}`,
         "LOB:",
         "Scope:",
-        "Seats:",
+        `Seats: ${seats}`,
         `HC: ${hc}`,
         `Training start date (CET or PST): ${trainingStart}`,
         `Nesting/Go-live: ${goLive}`,
@@ -1282,6 +1301,43 @@ function extractWorkType(value) {
     return match?.[0]
         ?.replace(/^.*?:\s*/i, "")
         .trim() || "";
+
+}
+
+function extractITSA(value) {
+
+    const directMatch = value.match(/(?:ITSA|IT\s+Solution\s+Architect)\s*:?[ \t]+([^\n]+)/i);
+    if (directMatch?.[1]?.trim()) return directMatch[1].trim();
+
+    const lines = value
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean);
+
+    for (let index = 0; index < lines.length; index++) {
+        if (!/\bUpdated\s+By\b/i.test(lines[index]) || !lines[index].includes("|")) continue;
+
+        const headers = lines[index].split("|").map(cell => cell.trim().toLowerCase());
+        const columnIndex = headers.findIndex(cell => /updated\s+by/.test(cell));
+        const nextRow = lines[index + 1]?.split("|").map(cell => cell.trim());
+        if (columnIndex >= 0 && nextRow?.[columnIndex]) return nextRow[columnIndex];
+    }
+
+    for (let index = 0; index < lines.length; index++) {
+        if (!/\bUpdated\s+By\b/i.test(lines[index])) continue;
+
+        const sameLineValue = lines[index]
+            .replace(/.*?\bUpdated\s+By\b\s*:?[ \t]*/i, "")
+            .trim();
+        if (sameLineValue) return sameLineValue;
+
+        const nextValue = lines[index + 1];
+        if (nextValue && !/^(Date|Version|Summary of Changes)$/i.test(nextValue)) {
+            return nextValue;
+        }
+    }
+
+    return "";
 
 }
 
