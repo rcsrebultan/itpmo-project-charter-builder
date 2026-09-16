@@ -70,11 +70,6 @@
                 <p>Create project charters faster using AI-assisted extraction.</p>
             </div>
 
-            <button class="primary-btn" type="button">
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
-                Generate Charter
-            </button>
-
         </header>
 
         <!-- Upload Section -->
@@ -287,7 +282,7 @@
                     Save Draft
                 </button>
 
-                <button class="primary-btn" type="button">
+                <button class="primary-btn" type="button" data-action="generate-docx">
                     Generate Word Charter
                 </button>
 
@@ -299,6 +294,7 @@
 
 </div>
 
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
 <script src="js/app.js"></script>
 
 </body>

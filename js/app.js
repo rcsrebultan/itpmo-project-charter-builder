@@ -437,6 +437,101 @@ function generateJSON() {
 
 }
 
+async function generateDocx() {
+
+    if (!window.docx) {
+        alert("The Word document generator could not be loaded. Check your internet connection and try again.");
+        return;
+    }
+
+    const data = collectProjectData();
+    const {
+        Document,
+        HeadingLevel,
+        Packer,
+        Paragraph,
+        Table,
+        TableCell,
+        TableRow,
+        TextRun,
+        WidthType
+    } = window.docx;
+
+    const text = value => value || "";
+    const labeledParagraph = (label, value) => new Paragraph({
+        children: [
+            new TextRun({ text: `${label}: `, bold: true }),
+            new TextRun(text(value))
+        ]
+    });
+
+    const teamRows = [
+        new TableRow({
+            children: ["Name", "Role", "Solution HO", "Date"]
+                .map(value => new TableCell({
+                    children: [new Paragraph({
+                        children: [new TextRun({ text: value, bold: true })]
+                    })]
+                }))
+        }),
+        ...data.teamMembers
+            .filter(member => Object.values(member).some(Boolean))
+            .map(member => new TableRow({
+                children: [member.name, member.role, member.solutionHO, member.date]
+                    .map(value => new TableCell({ children: [new Paragraph(text(value))] }))
+            }))
+    ];
+
+    const riskRows = [
+        new TableRow({
+            children: ["Identified Risk", "Mitigation Plan"]
+                .map(value => new TableCell({
+                    children: [new Paragraph({
+                        children: [new TextRun({ text: value, bold: true })]
+                    })]
+                }))
+        }),
+        ...data.risks
+            .filter(risk => risk.risk || risk.mitigation)
+            .map(risk => new TableRow({
+                children: [risk.risk, risk.mitigation]
+                    .map(value => new TableCell({ children: [new Paragraph(text(value))] }))
+            }))
+    ];
+
+    const document = new Document({
+        sections: [{
+            children: [
+                new Paragraph({ text: "Project Charter", heading: HeadingLevel.TITLE }),
+                labeledParagraph("Project Name", data.projectName),
+                labeledParagraph("EDR Number", data.edrNumber),
+                labeledParagraph("Project Summary", data.projectSummary),
+                labeledParagraph("Project Manager", data.projectManager),
+                labeledParagraph("IT Solution Architect", data.solutionArchitect),
+                labeledParagraph("Delivery Location", data.deliveryLocation),
+                labeledParagraph("Work Type", data.workType),
+                new Paragraph({ text: "Project Scope", heading: HeadingLevel.HEADING_1 }),
+                new Paragraph(text(data.projectScope)),
+                new Paragraph({ text: "Deliverables", heading: HeadingLevel.HEADING_1 }),
+                new Paragraph(text(data.deliverables)),
+                new Paragraph({ text: "Team Members / Resources / EDR", heading: HeadingLevel.HEADING_1 }),
+                new Table({ rows: teamRows, width: { size: 100, type: WidthType.PERCENTAGE } }),
+                new Paragraph({ text: "Identified Risks", heading: HeadingLevel.HEADING_1 }),
+                new Table({ rows: riskRows, width: { size: 100, type: WidthType.PERCENTAGE } })
+            ]
+        }]
+    });
+
+    const blob = await Packer.toBlob(document);
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = window.document.createElement("a");
+    link.href = downloadUrl;
+    link.download = `${data.projectName || "project-charter"}.docx`;
+    link.click();
+    URL.revokeObjectURL(downloadUrl);
+
+}
+
 // ===========================================
 // SAVE DRAFT
 // ===========================================
@@ -463,27 +558,9 @@ function saveDraft() {
 
 function initializeDraftStorage() {
 
-    const generateBtns =
-        document.querySelectorAll(
-            ".primary-btn"
-        );
-
-    generateBtns.forEach(btn => {
-
-        if (
-            btn.innerText
-                .toLowerCase()
-                .includes("generate")
-        ) {
-
-            btn.addEventListener(
-                "click",
-                generateJSON
-            );
-
-        }
-
-    });
+    document
+        .querySelectorAll('[data-action="generate-docx"]')
+        .forEach(btn => btn.addEventListener("click", generateDocx));
 
     const saveBtns =
         document.querySelectorAll(
