@@ -848,23 +848,7 @@ Internet:
 
 Use the actual headings from the document, including Network, Internet, Information Security, BC/DR, Tools & Applications, Voice Solution, Deskside, and Others when present. Do not include HTML tags.
 
-For deliverables, create a plain-text task list with exactly these workstreams and derive practical tasks from the documented requirements. Do not invent project-specific facts:
-Network:
-- task
-
-Network Security:
-- task
-
-Server:
-- task
-
-IT Operations:
-- task
-
-Voice and Telephony:
-- task
-
-If a workstream has no supporting requirement, leave its task list blank. For HC, use explicit non-peak and peak staffing values when present. For HOOP, use explicit weekday and weekend operating hours when present. Return plain text only inside all string values.
+For deliverables, create a plain-text list of practical work items derived from the documented requirements. Group related work items under these workstreams when supported by the document: Network, Network Security, Server, IT Operations, and Voice and Telephony. Generate the actual work items from the document; never output the word "task" as a placeholder and never copy this instruction into the result. If a workstream has no supporting requirement, omit that workstream entirely. For HC, use explicit non-peak and peak staffing values when present. For HOOP, use explicit weekday and weekend operating hours when present. Return plain text only inside all string values.
 
 DOCUMENT TITLE:
 ${documentContent.title}
@@ -932,7 +916,9 @@ function applyExtractedData(data) {
         if (name === "teamMembers" || name === "risks") return;
         const field = document.querySelector(`[data-field="${name}"]`);
         if (field && !field.value && typeof value === "string") {
-            const cleanedValue = cleanExtractedText(value);
+            const cleanedValue = name === "deliverables"
+                ? cleanDeliverables(value)
+                : cleanExtractedText(value);
             field.value = name === "projectSummary"
                 ? formatProjectSummary(cleanedValue)
                 : cleanedValue;
@@ -1112,5 +1098,16 @@ function mergeProjectSummary(aiValue, explicitValue) {
         const aiFieldValue = valueFor(aiLines, label);
         return `${label}: ${explicitFieldValue || aiFieldValue}`.trimEnd();
     }).join("\n");
+
+}
+
+function cleanDeliverables(value) {
+
+    return cleanExtractedText(value)
+        .split(/\r?\n/)
+        .filter(line => !/^\s*[-*•]?\s*tasks?\s*:?\s*$/i.test(line))
+        .join("\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
 
 }
