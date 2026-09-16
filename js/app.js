@@ -958,11 +958,7 @@ ${documentContent.text}`;
 
     let data;
     try {
-        const jsonResponse = response
-            .replace(/^```(?:json)?\s*/i, "")
-            .replace(/\s*```$/i, "")
-            .trim();
-        data = parseAIJson(jsonResponse);
+        data = parseAIJson(response);
     } catch (error) {
         throw new Error("Gemini returned an unreadable response instead of structured fields");
     }
@@ -1402,16 +1398,27 @@ function cleanProjectName(value) {
 
 function parseAIJson(value) {
 
-    try {
-        return JSON.parse(value);
-    } catch (error) {
-        const start = value.indexOf("{");
-        const end = value.lastIndexOf("}");
+    if (value && typeof value === "object") return value;
+    if (typeof value !== "string") throw new Error("AI response was not text or an object");
 
-        if (start < 0 || end <= start) throw error;
+    const cleaned = value
+        .replace(/[\u201C\u201D]/g, '"')
+        .replace(/[\u2018\u2019]/g, "'")
+        .replace(/^\s*```(?:json)?\s*/i, "")
+        .replace(/\s*```\s*$/i, "")
+        .trim();
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start < 0 || end <= start) throw new Error("AI response did not contain a JSON object");
 
-        return JSON.parse(value.slice(start, end + 1));
+    const jsonText = cleaned
+        .slice(start, end + 1)
+        .replace(/,\s*([}\]])/g, "$1");
+    const parsed = JSON.parse(jsonText);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("AI response JSON was not an object");
     }
+    return parsed;
 
 }
 
