@@ -851,14 +851,6 @@ async function populateFromGemini(documentContent) {
         additionalProperties: false
     };
 
-    const technologySection = documentContent.sections
-        .find(section => /technology solution summary/i.test(section.text));
-    const sourceText = technologySection?.text || documentContent.text;
-    const summarySection = documentContent.sections
-        .find(section => /high level summary|general solution information|delivery center/i.test(section.text));
-    const summaryText = summarySection?.text || documentContent.text;
-    const workTypeSection = documentContent.sections
-        .find(section => /work\s*type|general solution information|IT transition dates/i.test(section.text));
     const promptText = `Extract only facts from the supplied document. Do not invent names, dates, numbers, or locations. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, workType, projectManager, solutionArchitect.
 
 Use the explicit document title for projectName. If the title starts with "Technology Solution for", remove that phrase and keep only the client name as projectName. Format projectSummary exactly with these labels, one per line. Put a value after the colon only when that value is explicitly stated in the document; otherwise leave it empty. Do not write an introduction, explanation, summary paragraph, or any text outside these seven labels. Do not use square brackets, commas between fields, or HTML:
@@ -909,14 +901,8 @@ For HC, use explicit non-peak and peak staffing values when present. For HOOP, u
 DOCUMENT TITLE:
 ${documentContent.title}
 
-HIGH-LEVEL SOURCE:
-${summaryText.slice(0, 3500)}
-
-TECHNOLOGY SUMMARY:
-${sourceText.slice(0, 6500)}
-
-WORK TYPE SOURCE SECTION:
-${workTypeSection?.text?.slice(0, 1500) || "Not found in extracted text; inspect the supplied page image."}`;
+FULL DOCUMENT TEXT:
+${documentContent.text}`;
     const promptOptions = { responseConstraint: schema };
     let response;
 
@@ -1150,15 +1136,27 @@ function applyManualTemplates() {
 
 function extractExplicitSummary(documentContent) {
 
-    const source = documentContent.sections
-        .find(section => /high level summary|general solution information|delivery center/i.test(section.text))
-        ?.text || "";
+    const source = documentContent.text || (documentContent.sections || [])
+        .map(section => section.text)
+        .join("\n");
     const lines = source
         .split(/\r?\n/)
         .map(line => line.trim())
         .filter(Boolean);
-    const findValue = pattern => {
-        const match = source.match(pattern);
+    const labels = [
+        "Site", "LOB", "Scope", "Seats", "HC", "Training start date",
+        "Nesting", "Go-live", "HOOP", "Delivery Center", "Functions and Hours of Operation"
+    ];
+    const escapePattern = value => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const findValue = label => {
+        const nextLabels = labels
+            .filter(candidate => candidate.toLowerCase() !== label.toLowerCase())
+            .map(escapePattern)
+            .join("|");
+        const match = source.match(new RegExp(
+            `${escapePattern(label)}\\s*:?\\s*([\\s\\S]*?)(?=\\s+(?:${nextLabels})\\s*:?|\\n|$)`,
+            "i"
+        ));
         return match?.[1]?.trim() || "";
     };
     const deliveryCenterIndex = lines.findIndex(line => /functions and hours of operation/i.test(line));
@@ -1180,8 +1178,8 @@ function extractExplicitSummary(documentContent) {
     const hoopMatches = [...source.matchAll(/(?:Operating hours are|Weekend operating hours are)\s+([^\n]+)/gi)]
         .map(match => match[1].trim());
     const hoop = hoopMatches.join(" | ");
-    const trainingStart = findValue(/Training start\s*:?\s*([^\n]+)/i);
-    const goLive = findValue(/Go-Live\s*:?\s*([^\n]+)/i).replace(/^n\s+/i, "");
+    const trainingStart = findValue("Training start");
+    const goLive = findValue("Go-live").replace(/^n\s+/i, "") || findValue("Nesting");
 
     return [
         `Site: ${site}`,
