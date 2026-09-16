@@ -919,7 +919,7 @@ Voice and Telephony:
 -
 -
 
-For the project summary, search every slide/page, not only headings that match the field names. A line such as "101 Seats - 80: Agents and 21 Hierarchy" means Seats is 101 and HC is "80: Agents and 21 Hierarchy". Treat Training Date and Training start date as the same field. Treat Go Live, Go-Live, and Nesting/Go-live as the same field. For HC, use explicit non-peak and peak staffing values when present. For HOOP, use explicit weekday and weekend operating hours when present.
+For the project summary, search every slide/page, not only headings that match the field names. Apply these strict rules: Location must be a real place/site name with at least two letters, never a sentence or explanation. Seats must be a number only. HC must be a number only; for a line such as "101 Seats - 80: Agents and 21 Hierarchy", return Seats as 101 and HC as 80. Training start date and Nesting/Go-live must each be a date only. Treat Training Date and Training start date as the same field. Treat Go Live, Go-Live, and Nesting/Go-live as the same field. HOOP must contain business operating hours only, such as weekday/weekend hours or a Monday-Friday time range. If a value does not meet its rule, return an empty string rather than an explanation. For HC, use explicit non-peak and peak staffing values when present.
 
 For solutionArchitect, use the explicit ITSA or IT Solution Architect value when present. If it is not explicitly labeled, inspect the Document History table: the person listed under the Updated By column is the assigned ITSA for this charter. Return that person's full name. Return plain text only inside all string values.
 
@@ -1226,6 +1226,40 @@ function extractExplicitSummary(documentContent) {
 
 }
 
+function normalizeSummaryValue(label, value) {
+
+    const text = String(value || "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    if (!text) return "";
+
+    if (label === "Location") {
+        if (text.length < 2 || !/[A-Za-z]{2}/.test(text)) return "";
+        if (/per\s+seat|sizing\s+estimate|re-?evaluat|charged|price\s*-?change|to\s+validate|support\s+.+\s+operations/i.test(text)) return "";
+        if (text.split(" ").length > 8 || /[.!?]/.test(text)) return "";
+        return text;
+    }
+
+    if (label === "Seats" || label === "HC") {
+        return text.match(/\b\d{1,6}\b/)?.[0] || "";
+    }
+
+    if (label === "Training start date (CET or PST)" || label === "Nesting/Go-live") {
+        const date = text.match(/\b(?:\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}[- ](?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[ -]\d{2,4}|(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,?\s+)\d{4})\b/i);
+        return date?.[0] || "";
+    }
+
+    if (label === "HOOP") {
+        return /\b(?:\d{1,2}(?::\d{2})?\s*(?:AM|PM)?\s*[-–]\s*\d{1,2}(?::\d{2})?\s*(?:AM|PM)?|\d{1,2}:\d{2})\b/i.test(text)
+            ? text
+            : "";
+    }
+
+    return text;
+
+}
+
 function mergeProjectSummary(aiValue, explicitValue) {
 
     const aiLines = formatProjectSummary(aiValue || "").split("\n");
@@ -1246,8 +1280,8 @@ function mergeProjectSummary(aiValue, explicitValue) {
         .trim() || "";
 
     return labels.map(label => {
-        const explicitFieldValue = valueFor(explicitLines, label);
-        const aiFieldValue = valueFor(aiLines, label);
+        const explicitFieldValue = normalizeSummaryValue(label, valueFor(explicitLines, label));
+        const aiFieldValue = normalizeSummaryValue(label, valueFor(aiLines, label));
         return `${label}: ${explicitFieldValue || aiFieldValue}`.trimEnd();
     }).join("\n");
 
