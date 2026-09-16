@@ -499,10 +499,24 @@ async function generateDocx() {
     const rows = [...xml.getElementsByTagNameNS(namespace, "tbl")[0]
         .getElementsByTagNameNS(namespace, "tr")];
 
-    const cellText = (cell, value) => {
+    const cellText = (cell, value, alignment) => {
         const paragraphs = [...cell.getElementsByTagNameNS(namespace, "p")];
         const paragraph = paragraphs[0];
         if (!paragraph) return;
+
+        if (alignment) {
+            let paragraphProperties = paragraph.getElementsByTagNameNS(namespace, "pPr")[0];
+            if (!paragraphProperties) {
+                paragraphProperties = xml.createElementNS(namespace, "w:pPr");
+                paragraph.insertBefore(paragraphProperties, paragraph.firstChild);
+            }
+
+            [...paragraphProperties.getElementsByTagNameNS(namespace, "jc")]
+                .forEach(element => element.remove());
+            const justification = xml.createElementNS(namespace, "w:jc");
+            justification.setAttributeNS(namespace, "w:val", alignment);
+            paragraphProperties.appendChild(justification);
+        }
 
         paragraphs.slice(1).forEach(item => item.remove());
         [...paragraph.childNodes]
@@ -524,7 +538,7 @@ async function generateDocx() {
     };
 
     const cells = rowIndex => [...rows[rowIndex].getElementsByTagNameNS(namespace, "tc")];
-    const set = (rowIndex, cellIndex, value) => cellText(cells(rowIndex)[cellIndex], value);
+    const set = (rowIndex, cellIndex, value, alignment) => cellText(cells(rowIndex)[cellIndex], value, alignment);
     const projectName = String(data.projectName || "Untitled Project").trim();
     const edrNumber = String(data.edrNumber || "").trim();
     const charterName = `Project Charter - ${projectName}${edrNumber ? ` - EDR ${edrNumber}` : ""}`;
@@ -556,7 +570,7 @@ async function generateDocx() {
     for (let index = 0; index < 8; index++) {
         const member = teamMembers[index] || {};
         const rowIndex = 15 + index;
-        set(rowIndex, 0, member.role);
+        set(rowIndex, 0, member.role, "left");
         set(rowIndex, 1, member.name);
         set(rowIndex, 3, milestoneDates[index]);
     }
