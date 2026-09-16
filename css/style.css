@@ -436,6 +436,15 @@ textarea {
     justify-self: start;
 }
 
+.timeline-grid {
+
+    display: grid;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 15px;
+}
+
 /* ========================================
    RISKS
 ======================================== */
@@ -551,6 +560,10 @@ textarea {
     }
 
     .team-card {
+        grid-template-columns: 1fr;
+    }
+
+    .timeline-grid {
         grid-template-columns: 1fr;
     }
 }

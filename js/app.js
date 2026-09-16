@@ -165,16 +165,6 @@ function addTeamMember() {
             data-team-field="role"
             placeholder="Role">
 
-        <input
-            type="text"
-            data-team-field="solutionHO"
-            placeholder="Solution HO">
-
-        <input
-            type="text"
-            data-team-field="date"
-            placeholder="Date">
-
         <button
             class="remove-btn">
             Remove
@@ -381,9 +371,6 @@ function collectProjectData() {
 
                 name: field("name"),
                 role: field("role"),
-                solutionHO: field("solutionHO"),
-                date: field("date")
-
             });
 
         });
@@ -487,26 +474,30 @@ async function generateDocx() {
     const teamMembers = data.teamMembers
         .filter(member => Object.values(member).some(Boolean));
 
-    for (let index = 0; index < 7; index++) {
+    const milestoneDates = [
+        data.solutionHandoverDate,
+        data.itKickoffCall,
+        data.itSetup,
+        data.uat,
+        data.trainTheTrainer,
+        data.cet,
+        data.pst,
+        data.goLive
+    ];
+
+    for (let index = 0; index < 8; index++) {
         const member = teamMembers[index] || {};
-        const rowIndex = 16 + index;
+        const rowIndex = 15 + index;
         set(rowIndex, 0, member.name);
         set(rowIndex, 1, member.role);
-        set(rowIndex, 2, member.solutionHO);
-        set(rowIndex, 3, member.date);
+        set(rowIndex, 3, milestoneDates[index]);
     }
 
-    const risks = data.risks
-        .filter(risk => risk.risk || risk.mitigation)
-        .map(risk => `Risk: ${risk.risk || ""}\nMitigation: ${risk.mitigation || ""}`)
-        .join("\n\n");
-
-    set(23, 0, "Identified Risks and Mitigation");
-    set(24, 0, risks);
-    for (let index = 23; index < 29; index++) {
-        if (index !== 24) set(index, 1, "");
-        set(index, 2, "");
-    }
+    const risks = data.risks.filter(risk => risk.risk || risk.mitigation);
+    set(24, 0, risks.map(risk => risk.risk || "").join("\n"));
+    set(24, 1, risks.map(risk => risk.mitigation || "").join("\n"));
+    set(25, 0, "");
+    set(25, 1, "");
 
     zip.file("word/document.xml", new XMLSerializer().serializeToString(xml));
     const blob = await zip.generateAsync({ type: "blob" });
