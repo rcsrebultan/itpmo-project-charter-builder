@@ -4,6 +4,14 @@
 
 let currentStep = 0;
 
+const defaultTeamRoles = [
+    "Network",
+    "Network Security",
+    "Server",
+    "Voice",
+    "IT Ops"
+];
+
 const sections = document.querySelectorAll(".card");
 const steps = document.querySelectorAll(".step");
 
@@ -205,6 +213,12 @@ function addTeamMember(member = {}) {
         });
 
     container.appendChild(memberCard);
+
+}
+
+function addDefaultTeamMembers() {
+
+    defaultTeamRoles.forEach(role => addTeamMember({ role }));
 
 }
 
@@ -973,7 +987,7 @@ function applyExtractedData(data) {
     if (teamGrid) {
         teamGrid.innerHTML = "";
         teamMembers.forEach(member => addTeamMember(member));
-        if (!teamMembers.length) addTeamMember();
+        if (!teamMembers.length) addDefaultTeamMembers();
     }
 
     const riskGrid = document.querySelector(".risk-grid");
