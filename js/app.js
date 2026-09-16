@@ -828,7 +828,7 @@ async function populateFromGemini(documentContent) {
     const summaryText = summarySection?.text || documentContent.text;
     const promptText = `Extract only facts from the supplied document. Do not invent names, dates, numbers, or locations. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, projectManager, solutionArchitect.
 
-Use the explicit document title for projectName. Format projectSummary exactly with these labels, one per line. Put the extracted value after the colon, or leave the line empty after the colon when it is not stated. Do not use square brackets, commas between fields, or HTML:
+Use the explicit document title for projectName. Format projectSummary exactly with these labels, one per line. Put a value after the colon only when that value is explicitly stated in the document; otherwise leave it empty. Do not write an introduction, explanation, summary paragraph, or any text outside these seven labels. Do not use square brackets, commas between fields, or HTML:
 Site:
 LOB:
 Scope:
@@ -1004,12 +1004,39 @@ function isSupportedDocument(file) {
 
 function formatProjectSummary(value) {
 
-    return value
+    const labels = [
+        "Site",
+        "LOB",
+        "Scope",
+        "Seats",
+        "HC",
+        "Training start date (CET or PST)",
+        "Nesting/Go-live"
+    ];
+    const normalizedValue = value
         .replace(/\[\s*(?:value)?\s*\]/gi, "")
         .replace(/\s*,\s*(?=(?:Site|LOB|Scope|Seats|HC|Training start date \(CET or PST\)|Nesting\/Go-live):)/gi, "\n")
         .replace(/\s+(?=(?:Site|LOB|Scope|Seats|HC|Training start date \(CET or PST\)|Nesting\/Go-live):)/gi, "\n")
         .replace(/[ \t]+\n/g, "\n")
-        .replace(/\n{2,}/g, "\n")
-        .trim();
+        .replace(/\n{2,}/g, "\n");
+
+    const firstLabelIndex = normalizedValue.search(/(?:^|\n)Site\s*:/i);
+    const labeledText = firstLabelIndex >= 0
+        ? normalizedValue.slice(firstLabelIndex)
+        : "";
+
+    return labels.map((label, index) => {
+        const nextLabels = labels.slice(index + 1)
+            .map(nextLabel => nextLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+            .join("|");
+        const labelPattern = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const endPattern = nextLabels ? `(?=\\n(?:${nextLabels})\\s*:)` : "$";
+        const match = labeledText.match(new RegExp(`${labelPattern}\\s*:\\s*([\\s\\S]*?)${endPattern}`, "i"));
+        const extractedValue = match?.[1]
+            ?.replace(/\[\s*(?:value)?\s*\]/gi, "")
+            .replace(/\s+/g, " ")
+            .trim() || "";
+        return `${label}: ${extractedValue}`;
+    }).join("\n");
 
 }
