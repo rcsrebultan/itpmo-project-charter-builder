@@ -78,6 +78,20 @@ body {
     align-items: center;
     gap: 12px;
 
+    width: 100%;
+
+    padding: 0;
+
+    color: inherit;
+
+    text-align: left;
+
+    background: none;
+
+    border: none;
+
+    cursor: pointer;
+
     font-weight: 700;
     font-size: 18px;
 

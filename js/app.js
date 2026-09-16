@@ -25,6 +25,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     showStep(0);
 
+    document
+        .querySelector('[data-action="go-to-upload"]')
+        ?.addEventListener("click", () => showStep(0));
+
     initializeTeamSection();
 
     initializeRiskSection();
