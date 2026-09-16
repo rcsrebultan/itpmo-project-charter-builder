@@ -684,7 +684,7 @@ async function handleDocumentAnalysis() {
         await populateFromGemini(documentContent);
         if (uploadSection) uploadSection.dataset.analysisReady = "true";
         document.querySelector(".upload-next")?.removeAttribute("hidden");
-        setAIStatus("Analysis successful: 100%. Review the populated fields, then click Next to continue.", "success", 100);
+        setAIStatus("Analysis successful: 100%. Click Next to review populated fields.", "success", 100);
     } catch (error) {
         console.error(error);
         if (uploadSection) uploadSection.dataset.analysisReady = "false";
