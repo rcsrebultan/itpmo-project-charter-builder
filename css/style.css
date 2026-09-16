@@ -415,6 +415,13 @@ textarea {
     color: var(--danger);
 }
 
+.upload-actions button:disabled {
+
+    cursor: wait;
+
+    opacity: .65;
+}
+
 .uploaded-file {
 
     padding: 8px 0;

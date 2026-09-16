@@ -633,11 +633,14 @@ async function handleDocumentAnalysis() {
 
     const fileInput = document.querySelector('.upload-area input[type="file"]');
     const files = [...(fileInput?.files || [])];
+    const analyzeButton = document.querySelector('[data-action="analyze-document"]');
 
     if (!files.length) {
         showStep(1);
         return;
     }
+
+    if (analyzeButton) analyzeButton.disabled = true;
 
     try {
         setAIStatus("Reading the uploaded document locally...", "working");
@@ -649,6 +652,8 @@ async function handleDocumentAnalysis() {
         console.error(error);
         setAIStatus(`AI analysis was unavailable. You can still complete the form manually. (${error.message})`, "error");
         showStep(1);
+    } finally {
+        if (analyzeButton) analyzeButton.disabled = false;
     }
 
 }
@@ -747,6 +752,8 @@ async function populateFromGemini(documentContent) {
             });
         }
     });
+
+    setAIStatus("Gemini Nano is ready. Reviewing the document...", "working");
 
     const schema = {
         type: "object",
