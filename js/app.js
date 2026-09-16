@@ -673,7 +673,7 @@ async function extractDocumentContent(files) {
                 canvas.height = viewport.height;
                 await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
                 const pageImage = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.8));
-                if (pageImage) images.push(pageImage);
+                if (pageImage) images.push(await prepareAIImage(pageImage));
             }
         } else {
             const zip = await JSZip.loadAsync(await file.arrayBuffer());
@@ -693,8 +693,16 @@ async function extractDocumentContent(files) {
                 const imageFile = zip.file(name);
                 if (imageFile) {
                     const extension = name.split(".").pop().toLowerCase();
-                    const mime = extension === "png" ? "image/png" : extension === "jpg" || extension === "jpeg" ? "image/jpeg" : "image/*";
-                    images.push(new Blob([await imageFile.async("arraybuffer")], { type: mime }));
+                    const mimeByExtension = {
+                        png: "image/png",
+                        jpg: "image/jpeg",
+                        jpeg: "image/jpeg",
+                        webp: "image/webp"
+                    };
+                    const mime = mimeByExtension[extension];
+                    if (mime) {
+                        images.push(await prepareAIImage(new Blob([await imageFile.async("arraybuffer")], { type: mime })));
+                    }
                 }
             }
         }
@@ -710,8 +718,11 @@ async function populateFromGemini(documentContent) {
         throw new Error("Chrome built-in AI is not available in this browser");
     }
 
+    const hasExtractedText = Boolean(documentContent.text.trim());
     const options = {
-        expectedInputs: [{ type: "text", languages: ["en"] }].concat(documentContent.images.length ? [{ type: "image" }] : []),
+        expectedInputs: hasExtractedText
+            ? [{ type: "text", languages: ["en"] }]
+            : [{ type: "text", languages: ["en"] }, { type: "image" }],
         expectedOutputs: [{ type: "text", languages: ["en"] }]
     };
     const availability = await LanguageModel.availability(options);
@@ -737,71 +748,48 @@ async function populateFromGemini(documentContent) {
         type: "object",
         properties: {
             projectName: { type: "string" },
-            edrNumber: { type: "string" },
-            deliveryLocation: { type: "string" },
-            workType: { type: "string" },
-            projectManager: { type: "string" },
-            solutionArchitect: { type: "string" },
             projectSummary: { type: "string" },
-            businessJustification: { type: "string" },
-            objectives: { type: "string" },
             projectScope: { type: "string" },
             deliverables: { type: "string" },
-            assumptions: { type: "string" },
-            constraints: { type: "string" },
-            solutionHandoverDate: { type: "string" },
-            itKickoffCall: { type: "string" },
-            itSetup: { type: "string" },
-            uat: { type: "string" },
-            trainTheTrainer: { type: "string" },
-            cet: { type: "string" },
-            pst: { type: "string" },
-            goLive: { type: "string" },
-            teamMembers: {
-                type: "array",
-                items: {
-                    type: "object",
-                    properties: { name: { type: "string" }, role: { type: "string" } },
-                    required: ["name", "role"],
-                    additionalProperties: false
-                }
-            },
-            risks: {
-                type: "array",
-                items: {
-                    type: "object",
-                    properties: { risk: { type: "string" }, mitigation: { type: "string" } },
-                    required: ["risk", "mitigation"],
-                    additionalProperties: false
-                }
-            }
+            projectManager: { type: "string" },
+            solutionArchitect: { type: "string" }
         },
         required: [
-            "projectName", "edrNumber", "deliveryLocation", "workType",
-            "projectManager", "solutionArchitect", "projectSummary",
-            "businessJustification", "objectives", "projectScope", "deliverables",
-            "assumptions", "constraints", "solutionHandoverDate", "itKickoffCall",
-            "itSetup", "uat", "trainTheTrainer", "cet", "pst", "goLive",
-            "teamMembers", "risks"
+            "projectName", "projectSummary", "projectScope", "deliverables",
+            "projectManager", "solutionArchitect"
         ],
         additionalProperties: false
     };
 
-    const promptText = `You extract only facts explicitly present in the supplied project document. Never guess, infer, or create dates. Return empty strings and empty arrays for missing information. Summarize the document's technology solution in projectSummary. Use projectScope for scope facts and deliverables for concrete outputs.\n\nDOCUMENT TEXT:\n${documentContent.text}`;
-    const promptContent = documentContent.images.length
-        ? [{ type: "text", value: promptText }, ...documentContent.images.map(value => ({ type: "image", value }))]
-        : promptText;
+    const promptText = `Extract explicit facts only. Do not guess or invent. Missing values must be empty. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, projectManager, solutionArchitect.\n\nDOCUMENT:\n${documentContent.text.slice(0, 800)}`;
     let response;
 
     try {
-        response = await session.prompt(promptContent, { responseConstraint: schema });
+        if (documentContent.text.trim()) {
+            response = await session.prompt(promptText);
+        } else {
+            const promptImages = documentContent.images.slice(0, 1);
+            response = await session.prompt([
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", value: promptText },
+                        ...promptImages.map(value => ({ type: "image", value }))
+                    ]
+                }
+            ]);
+        }
     } finally {
         session.destroy();
     }
 
     let data;
     try {
-        data = JSON.parse(response);
+        const jsonResponse = response
+            .replace(/^```(?:json)?\s*/i, "")
+            .replace(/\s*```$/i, "")
+            .trim();
+        data = JSON.parse(jsonResponse);
     } catch (error) {
         throw new Error("Gemini returned an unreadable response instead of structured fields");
     }
@@ -842,6 +830,26 @@ function applyExtractedData(data) {
         riskGrid.innerHTML = "";
         (data.risks || []).filter(risk => risk.risk || risk.mitigation).forEach(risk => addRisk(risk));
         if (!riskGrid.children.length) addRisk();
+    }
+
+}
+
+async function prepareAIImage(blob) {
+
+    try {
+        const bitmap = await createImageBitmap(blob);
+        const scale = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        bitmap.close();
+
+        return await new Promise(resolve => {
+            canvas.toBlob(resolve, "image/jpeg", 0.65);
+        });
+    } catch (error) {
+        return blob;
     }
 
 }
