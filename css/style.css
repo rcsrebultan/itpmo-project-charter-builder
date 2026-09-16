@@ -389,6 +389,32 @@ textarea {
     margin-top: 15px;
 }
 
+.upload-actions {
+
+    display: flex;
+
+    gap: 12px;
+
+    margin-top: 18px;
+}
+
+.ai-status {
+
+    min-height: 20px;
+
+    margin-top: 12px;
+
+    color: var(--text-secondary);
+}
+
+.ai-status[data-state="success"] {
+    color: var(--success);
+}
+
+.ai-status[data-state="error"] {
+    color: var(--danger);
+}
+
 .uploaded-file {
 
     padding: 8px 0;
@@ -556,6 +582,10 @@ textarea {
     }
 
     .review-actions {
+        flex-direction: column;
+    }
+
+    .upload-actions {
         flex-direction: column;
     }
 

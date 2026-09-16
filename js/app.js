@@ -93,10 +93,14 @@ function buildNavigation() {
             ? "Finish"
             : "Next";
 
-        nextBtn.onclick = () => {
+        nextBtn.onclick = async () => {
 
             if (currentStep < sections.length - 1) {
-                showStep(currentStep + 1);
+                if (index === 0) {
+                    await handleUploadNext();
+                } else {
+                    showStep(currentStep + 1);
+                }
             }
 
         };
@@ -145,7 +149,7 @@ function initializeTeamCard(card) {
 
 }
 
-function addTeamMember() {
+function addTeamMember(member = {}) {
 
     const container =
         document.querySelector(".team-grid");
@@ -170,6 +174,9 @@ function addTeamMember() {
             Remove
         </button>
     `;
+
+    memberCard.querySelector('[data-team-field="name"]').value = member.name || "";
+    memberCard.querySelector('[data-team-field="role"]').value = member.role || "";
 
     memberCard
         .querySelector(".remove-btn")
@@ -200,7 +207,7 @@ function initializeRiskSection() {
 
 }
 
-function addRisk() {
+function addRisk(risk = {}) {
 
     const container =
         document.querySelector(".risk-grid");
@@ -215,7 +222,7 @@ function addRisk() {
 
             <label>Risk</label>
 
-            <textarea rows="3"></textarea>
+            <textarea rows="3" data-risk-field="risk"></textarea>
 
         </div>
 
@@ -223,7 +230,7 @@ function addRisk() {
 
             <label>Mitigation</label>
 
-            <textarea rows="3"></textarea>
+            <textarea rows="3" data-risk-field="mitigation" placeholder="Mitigation plan"></textarea>
 
         </div>
 
@@ -241,6 +248,9 @@ function addRisk() {
             riskCard.remove();
 
         });
+
+    riskCard.querySelector('[data-risk-field="risk"]').value = risk.risk || "";
+    riskCard.querySelector('[data-risk-field="mitigation"]').value = risk.mitigation || "";
 
     container.appendChild(riskCard);
 
@@ -308,6 +318,14 @@ function initializeFileUpload() {
     fileInput.addEventListener("change", (event) => {
         handleFiles(event.target.files);
     });
+
+    document
+        .querySelector('[data-action="analyze-document"]')
+        ?.addEventListener("click", handleDocumentAnalysis);
+
+    document
+        .querySelector('[data-action="build-manually"]')
+        ?.addEventListener("click", () => showStep(1));
 
     ["dragenter", "dragover"].forEach(eventName => {
         uploadArea.addEventListener(eventName, (event) => {
@@ -584,5 +602,204 @@ async function runAIExtraction() {
     console.log(
         "Future OpenAI / Python extraction hook."
     );
+
+}
+
+function setAIStatus(message, state = "") {
+
+    const status = document.querySelector(".ai-status");
+    if (!status) return;
+
+    status.textContent = message;
+    status.dataset.state = state;
+
+}
+
+async function handleUploadNext() {
+
+    const fileInput = document.querySelector('.upload-area input[type="file"]');
+
+    if (!fileInput?.files.length) {
+        showStep(1);
+        setAIStatus("Manual builder selected. You can complete the fields yourself.", "manual");
+        return;
+    }
+
+    await handleDocumentAnalysis();
+
+}
+
+async function handleDocumentAnalysis() {
+
+    const fileInput = document.querySelector('.upload-area input[type="file"]');
+    const files = [...(fileInput?.files || [])];
+
+    if (!files.length) {
+        showStep(1);
+        return;
+    }
+
+    try {
+        setAIStatus("Reading the uploaded document locally...", "working");
+        const documentContent = await extractDocumentContent(files);
+        await populateFromGemini(documentContent);
+        setAIStatus("Analysis complete. Review and edit the populated fields.", "success");
+        showStep(1);
+    } catch (error) {
+        console.error(error);
+        setAIStatus(`AI analysis was unavailable. You can still complete the form manually. (${error.message})`, "error");
+        showStep(1);
+    }
+
+}
+
+async function extractDocumentContent(files) {
+
+    const textParts = [];
+    const images = [];
+
+    for (const file of files) {
+        if (file.name.toLowerCase().endsWith(".pdf")) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+            const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+            for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+                const page = await pdf.getPage(pageNumber);
+                const content = await page.getTextContent();
+                textParts.push(`PDF ${file.name}, page ${pageNumber}:\n${content.items.map(item => item.str).join(" ")}`);
+
+                const viewport = page.getViewport({ scale: 1 });
+                const canvas = document.createElement("canvas");
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+                const pageImage = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.8));
+                if (pageImage) images.push(pageImage);
+            }
+        } else {
+            const zip = await JSZip.loadAsync(await file.arrayBuffer());
+            const slideNames = Object.keys(zip.files)
+                .filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+                .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+
+            for (const slideName of slideNames) {
+                const xml = new DOMParser().parseFromString(await zip.file(slideName).async("string"), "application/xml");
+                const slideText = [...xml.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "t")]
+                    .map(node => node.textContent)
+                    .join(" ");
+                textParts.push(`PPTX ${file.name}, ${slideName}:\n${slideText}`);
+            }
+
+            for (const name of Object.keys(zip.files).filter(item => item.startsWith("ppt/media/"))) {
+                const imageFile = zip.file(name);
+                if (imageFile) {
+                    const extension = name.split(".").pop().toLowerCase();
+                    const mime = extension === "png" ? "image/png" : extension === "jpg" || extension === "jpeg" ? "image/jpeg" : "image/*";
+                    images.push(new Blob([await imageFile.async("arraybuffer")], { type: mime }));
+                }
+            }
+        }
+    }
+
+    return { text: textParts.join("\n\n"), images };
+
+}
+
+async function populateFromGemini(documentContent) {
+
+    if (typeof LanguageModel === "undefined") {
+        throw new Error("Chrome built-in AI is not available in this browser");
+    }
+
+    const options = {
+        expectedInputs: [{ type: "text", languages: ["en"] }].concat(documentContent.images.length ? [{ type: "image" }] : []),
+        expectedOutputs: [{ type: "text", languages: ["en"] }]
+    };
+    const availability = await LanguageModel.availability(options);
+
+    if (availability === "unavailable") {
+        throw new Error("Chrome Gemini Nano is unavailable on this device");
+    }
+
+    setAIStatus(availability === "downloadable" || availability === "downloading"
+        ? "Chrome is preparing Gemini Nano. This may take a while the first time..."
+        : "Gemini Nano is reviewing the document...", "working");
+
+    const session = await LanguageModel.create({
+        ...options,
+        monitor(monitor) {
+            monitor.addEventListener("downloadprogress", event => {
+                setAIStatus(`Downloading Gemini Nano: ${Math.round(event.loaded * 100)}%`, "working");
+            });
+        }
+    });
+
+    const schema = {
+        type: "object",
+        properties: {
+            projectName: { type: "string" },
+            edrNumber: { type: "string" },
+            deliveryLocation: { type: "string" },
+            workType: { type: "string" },
+            projectManager: { type: "string" },
+            solutionArchitect: { type: "string" },
+            projectSummary: { type: "string" },
+            businessJustification: { type: "string" },
+            objectives: { type: "string" },
+            projectScope: { type: "string" },
+            deliverables: { type: "string" },
+            assumptions: { type: "string" },
+            constraints: { type: "string" },
+            solutionHandoverDate: { type: "string" },
+            itKickoffCall: { type: "string" },
+            itSetup: { type: "string" },
+            uat: { type: "string" },
+            trainTheTrainer: { type: "string" },
+            cet: { type: "string" },
+            pst: { type: "string" },
+            goLive: { type: "string" },
+            teamMembers: { type: "array", items: { type: "object", properties: { name: { type: "string" }, role: { type: "string" } } } },
+            risks: { type: "array", items: { type: "object", properties: { risk: { type: "string" }, mitigation: { type: "string" } } } }
+        },
+        additionalProperties: false
+    };
+
+    const promptText = `You extract only facts explicitly present in the supplied project document. Never guess, infer, or create dates. Return empty strings and empty arrays for missing information. Summarize the document's technology solution in projectSummary. Use projectScope for scope facts and deliverables for concrete outputs.\n\nDOCUMENT TEXT:\n${documentContent.text}`;
+    const promptContent = documentContent.images.length
+        ? [{ type: "text", value: promptText }, ...documentContent.images.map(value => ({ type: "image", value }))]
+        : promptText;
+    let response;
+
+    try {
+        response = await session.prompt(promptContent, { responseConstraint: schema });
+    } finally {
+        session.destroy();
+    }
+
+    applyExtractedData(JSON.parse(response));
+
+}
+
+function applyExtractedData(data) {
+
+    Object.entries(data).forEach(([name, value]) => {
+        if (name === "teamMembers" || name === "risks") return;
+        const field = document.querySelector(`[data-field="${name}"]`);
+        if (field && !field.value && typeof value === "string") field.value = value;
+    });
+
+    const teamMembers = (data.teamMembers || []).filter(member => member.name || member.role);
+    const teamGrid = document.querySelector(".team-grid");
+    if (teamGrid) {
+        teamGrid.innerHTML = "";
+        teamMembers.forEach(member => addTeamMember(member));
+        if (!teamMembers.length) addTeamMember();
+    }
+
+    const riskGrid = document.querySelector(".risk-grid");
+    if (riskGrid) {
+        riskGrid.innerHTML = "";
+        (data.risks || []).filter(risk => risk.risk || risk.mitigation).forEach(risk => addRisk(risk));
+        if (!riskGrid.children.length) addRisk();
+    }
 
 }

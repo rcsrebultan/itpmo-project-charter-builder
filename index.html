@@ -104,6 +104,20 @@
 
             </div>
 
+            <div class="upload-actions">
+                <button class="primary-btn" type="button" data-action="analyze-document">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    Analyze and Continue
+                </button>
+
+                <button class="secondary-btn" type="button" data-action="build-manually">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    Build Manually
+                </button>
+            </div>
+
+            <p class="ai-status" role="status" aria-live="polite"></p>
+
         </section>
 
         <!-- Project Information -->
@@ -348,6 +362,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="js/app.js"></script>
 
 </body>
