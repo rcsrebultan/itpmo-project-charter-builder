@@ -757,9 +757,33 @@ async function populateFromGemini(documentContent) {
             cet: { type: "string" },
             pst: { type: "string" },
             goLive: { type: "string" },
-            teamMembers: { type: "array", items: { type: "object", properties: { name: { type: "string" }, role: { type: "string" } } } },
-            risks: { type: "array", items: { type: "object", properties: { risk: { type: "string" }, mitigation: { type: "string" } } } }
+            teamMembers: {
+                type: "array",
+                items: {
+                    type: "object",
+                    properties: { name: { type: "string" }, role: { type: "string" } },
+                    required: ["name", "role"],
+                    additionalProperties: false
+                }
+            },
+            risks: {
+                type: "array",
+                items: {
+                    type: "object",
+                    properties: { risk: { type: "string" }, mitigation: { type: "string" } },
+                    required: ["risk", "mitigation"],
+                    additionalProperties: false
+                }
+            }
         },
+        required: [
+            "projectName", "edrNumber", "deliveryLocation", "workType",
+            "projectManager", "solutionArchitect", "projectSummary",
+            "businessJustification", "objectives", "projectScope", "deliverables",
+            "assumptions", "constraints", "solutionHandoverDate", "itKickoffCall",
+            "itSetup", "uat", "trainTheTrainer", "cet", "pst", "goLive",
+            "teamMembers", "risks"
+        ],
         additionalProperties: false
     };
 
@@ -775,7 +799,25 @@ async function populateFromGemini(documentContent) {
         session.destroy();
     }
 
-    applyExtractedData(JSON.parse(response));
+    let data;
+    try {
+        data = JSON.parse(response);
+    } catch (error) {
+        throw new Error("Gemini returned an unreadable response instead of structured fields");
+    }
+
+    const populatedCount = Object.entries(data)
+        .filter(([name, value]) => !["teamMembers", "risks"].includes(name)
+            && typeof value === "string" && value.trim())
+        .length
+        + (data.teamMembers?.length || 0)
+        + (data.risks?.length || 0);
+
+    if (!populatedCount) {
+        throw new Error("Gemini returned no usable values from the uploaded document");
+    }
+
+    applyExtractedData(data);
 
 }
 
