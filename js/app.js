@@ -104,16 +104,19 @@ function buildNavigation() {
 
         nextBtn.onclick = async () => {
 
-            if (currentStep < sections.length - 1) {
-                if (index === 0) {
-                    if (section.dataset.analysisReady === "true") {
-                        showStep(1);
-                    } else {
-                        await handleUploadNext();
-                    }
+            if (index === sections.length - 1) {
+                window.location.reload();
+                return;
+            }
+
+            if (index === 0) {
+                if (section.dataset.analysisReady === "true") {
+                    showStep(1);
                 } else {
-                    showStep(currentStep + 1);
+                    await handleUploadNext();
                 }
+            } else {
+                showStep(currentStep + 1);
             }
 
         };
