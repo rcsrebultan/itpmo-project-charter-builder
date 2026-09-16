@@ -638,8 +638,12 @@ function setAIStatus(message, state = "", progress = null) {
     status.textContent = message;
     status.dataset.state = state;
 
-    if (progressBar && progress !== null) {
-        progressBar.hidden = false;
+    if (!progressBar) return;
+
+    progressBar.hidden = false;
+    if (progress === null) {
+        progressBar.removeAttribute("value");
+    } else {
         progressBar.value = progress;
     }
 
@@ -788,20 +792,20 @@ async function populateFromGemini(documentContent) {
     }
 
     setAIStatus(availability === "downloadable" || availability === "downloading"
-        ? "Preparing Gemini Nano: 25%"
-        : "Gemini Nano is reviewing the document: 75%", "working", 25);
+        ? "Preparing Gemini Nano: 30%"
+        : "Gemini Nano is ready: 30%", "working", 30);
 
     const session = await LanguageModel.create({
         ...options,
         monitor(monitor) {
             monitor.addEventListener("downloadprogress", event => {
                 const downloadProgress = Math.round(event.loaded * 100);
-                setAIStatus(`Downloading Gemini Nano: ${downloadProgress}%`, "working", 25 + Math.round(downloadProgress * .5));
+                setAIStatus(`Downloading Gemini Nano: ${downloadProgress}%`, "working", 30 + Math.round(downloadProgress * .3));
             });
         }
     });
 
-    setAIStatus("Gemini Nano is ready. Reviewing the document: 80%", "working", 80);
+    setAIStatus("Gemini Nano is analyzing the document. Progress is being calculated...", "working");
 
     const schema = {
         type: "object",
@@ -899,6 +903,8 @@ ${sourceText.slice(0, 6500)}`;
     } finally {
         session.destroy();
     }
+
+    setAIStatus("Gemini Nano returned a response: 90%", "working", 90);
 
     let data;
     try {
