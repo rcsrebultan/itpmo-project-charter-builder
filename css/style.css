@@ -695,6 +695,7 @@ textarea {
         grid-template-rows: none;
         grid-auto-flow: row;
     }
+}
 
 
 .step.completed {
