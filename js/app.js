@@ -863,8 +863,8 @@ async function populateFromGemini(documentContent) {
 
     const promptText = `Extract only facts from the supplied document. Do not invent names, dates, numbers, or locations. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, workType, projectManager, solutionArchitect.
 
-Use the explicit document title for projectName. If the title starts with "Technology Solution for", remove that phrase and keep only the client name as projectName. Format projectSummary exactly with these labels, one per line. Put a value after the colon only when that value is explicitly stated in the document; otherwise leave it empty. Do not write an introduction, explanation, summary paragraph, or any text outside these seven labels. Do not use square brackets, commas between fields, or HTML:
-Site:
+Use the explicit document title for projectName. If the title starts with "Technology Solution for", remove that phrase and keep only the client name as projectName. Format projectSummary exactly with these labels, one per line. Put a value after the colon only when that value is explicitly stated in the document; otherwise leave it empty. Do not write an introduction, explanation, summary paragraph, or any text outside these eight labels. Do not use square brackets, commas between fields, or HTML:
+Location:
 LOB:
 Scope:
 Seats:
@@ -1062,7 +1062,7 @@ function isSupportedDocument(file) {
 function formatProjectSummary(value) {
 
     const labels = [
-        "Site",
+        "Location",
         "LOB",
         "Scope",
         "Seats",
@@ -1095,7 +1095,7 @@ function applyManualTemplates() {
 
     const templates = {
         projectSummary: [
-            "Site:",
+            "Location:",
             "LOB:",
             "Scope:",
             "Seats:",
@@ -1157,7 +1157,7 @@ function extractExplicitSummary(documentContent) {
         .map(line => line.trim())
         .filter(Boolean);
     const labels = [
-        "Site", "LOB", "Scope", "Seats", "HC", "Training start date",
+        "Location", "LOB", "Scope", "Seats", "HC", "Training start date",
         "Nesting", "Go-live", "HOOP", "Delivery Center", "Functions and Hours of Operation"
     ];
     const escapePattern = value => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1175,7 +1175,7 @@ function extractExplicitSummary(documentContent) {
     const deliveryCenterIndex = lines.findIndex(line => /functions and hours of operation/i.test(line));
     const deliveryCenterText = source.match(/Delivery Center[\s\S]*?(?=Data Network Solution|Voice Solution)/i)?.[0] || source;
     const siteMatch = deliveryCenterText.match(/(Philippines|Thailand|India|Mexico|United States|Canada)\s*\n\s*([^\n]+)/i);
-    const site = findValue("Site") || (siteMatch
+    const location = findValue("Location") || (siteMatch
         ? `${siteMatch[1].trim()} - ${siteMatch[2].trim()}`
         : "");
     const nonPeak = source.match(/HC and Seats Non Peak[^\n]*?Agents\s*[–-]\s*([^;\n]+);\s*Support Staff\s*[–-]\s*([^\n]+)/i);
@@ -1201,7 +1201,7 @@ function extractExplicitSummary(documentContent) {
         || findValue("Nesting");
 
     return [
-        `Site: ${site}`,
+        `Location: ${location}`,
         "LOB:",
         "Scope:",
         `Seats: ${seats}`,
@@ -1218,7 +1218,7 @@ function mergeProjectSummary(aiValue, explicitValue) {
     const aiLines = formatProjectSummary(aiValue || "").split("\n");
     const explicitLines = formatProjectSummary(explicitValue || "").split("\n");
     const labels = [
-        "Site",
+        "Location",
         "LOB",
         "Scope",
         "Seats",
