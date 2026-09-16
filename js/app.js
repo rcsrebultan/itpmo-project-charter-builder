@@ -891,7 +891,7 @@ HOOP:
 
 For workType, inspect the source page or section containing General Solution Information, IT Transition Dates, or the highlighted Work Type entry. Extract the exact documented value, such as B&M, WAH, B&M only, WAH only, or both. Do not infer a work type when it is not stated; return an empty string instead.
 
-Put the complete Technology Solution Summary into projectScope, not projectSummary. Preserve every actual topic found in that summary and format it as separate sections. Every detail line must start with exactly one dash and a space. Never leave a detail line bare. For example:
+Put the complete Technology Solution Summary into projectScope, not projectSummary. Use only wording and facts explicitly present in the supplied document. Do not add assumptions, recommendations, plausible details, or general industry knowledge. If a scope detail is not supported by the document, omit it. Format the result as separate sections. Every detail line must start with exactly one dash and a space. Never leave a detail line bare. For example:
 Network:
 - detail
 - detail
@@ -970,6 +970,7 @@ ${documentContent.text}`;
     sanitizeAIValues(data);
     data.workType = data.workType || extractWorkType(documentContent.text);
     data.solutionArchitect = extractITSA(documentContent.text) || data.solutionArchitect;
+    data.projectScope = sanitizeProjectScope(data.projectScope, documentContent.text);
 
     const populatedCount = Object.entries(data)
         .filter(([name, value]) => !["teamMembers", "risks"].includes(name)
@@ -1050,6 +1051,47 @@ function formatProjectScope(value) {
         if (headings.has(heading)) return `${heading}:`;
         return `- ${withoutBullet}`;
     }).join("\n");
+
+}
+
+function sanitizeProjectScope(value, source) {
+
+    const sourceText = normalizeForSourceMatch(source);
+    const headings = new Set([
+        "Network",
+        "Internet",
+        "Information Security",
+        "BC/DR",
+        "Tools & Applications",
+        "Voice Solution",
+        "Deskside",
+        "Others"
+    ]);
+    const lines = formatProjectScope(value).split(/\r?\n/);
+
+    return lines.filter(line => {
+        const content = line.replace(/^[-]\s*/, "").replace(/:$/, "").trim();
+        if (!content) return false;
+        if (headings.has(content)) return true;
+
+        const normalizedContent = normalizeForSourceMatch(content);
+        if (normalizedContent.length < 4) return false;
+        if (sourceText.includes(normalizedContent)) return true;
+
+        const tokens = normalizedContent.split(" ").filter(token => token.length > 2);
+        const matchingTokens = tokens.filter(token => sourceText.includes(token));
+        return tokens.length >= 4 && matchingTokens.length / tokens.length >= 0.75;
+    }).join("\n");
+
+}
+
+function normalizeForSourceMatch(value) {
+
+    return String(value || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .replace(/\s+/g, " ");
 
 }
 
