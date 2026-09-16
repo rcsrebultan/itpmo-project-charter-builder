@@ -894,11 +894,12 @@ ${sourceText.slice(0, 6500)}
 
 WORK TYPE SOURCE SECTION:
 ${workTypeSection?.text?.slice(0, 1500) || "Not found in extracted text; inspect the supplied page image."}`;
+    const promptOptions = { responseConstraint: schema };
     let response;
 
     try {
         if (documentContent.text.trim()) {
-            response = await session.prompt(promptText);
+            response = await session.prompt(promptText, promptOptions);
         } else {
             const promptImages = documentContent.images.slice(0, 1);
             response = await session.prompt([
@@ -909,7 +910,7 @@ ${workTypeSection?.text?.slice(0, 1500) || "Not found in extracted text; inspect
                         ...promptImages.map(value => ({ type: "image", value }))
                     ]
                 }
-            ]);
+            ], promptOptions);
         }
     } finally {
         session.destroy();
@@ -923,7 +924,7 @@ ${workTypeSection?.text?.slice(0, 1500) || "Not found in extracted text; inspect
             .replace(/^```(?:json)?\s*/i, "")
             .replace(/\s*```$/i, "")
             .trim();
-        data = JSON.parse(jsonResponse);
+        data = parseAIJson(jsonResponse);
     } catch (error) {
         throw new Error("Gemini returned an unreadable response instead of structured fields");
     }
@@ -1174,6 +1175,21 @@ function cleanProjectName(value) {
     return cleanExtractedText(value)
         .replace(/^\s*technology\s+solution\s+for\s*:?[\s-]*/i, "")
         .trim();
+
+}
+
+function parseAIJson(value) {
+
+    try {
+        return JSON.parse(value);
+    } catch (error) {
+        const start = value.indexOf("{");
+        const end = value.lastIndexOf("}");
+
+        if (start < 0 || end <= start) throw error;
+
+        return JSON.parse(value.slice(start, end + 1));
+    }
 
 }
 
