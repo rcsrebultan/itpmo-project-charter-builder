@@ -916,6 +916,11 @@ ${sourceText.slice(0, 6500)}`;
         throw new Error("Gemini returned no usable values from the uploaded document");
     }
 
+    data.projectSummary = mergeProjectSummary(
+        data.projectSummary,
+        extractExplicitSummary(documentContent)
+    );
+
     applyExtractedData(data);
 
 }
@@ -1013,30 +1018,80 @@ function formatProjectSummary(value) {
         "Training start date (CET or PST)",
         "Nesting/Go-live"
     ];
+    const labelPattern = labels
+        .map(label => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join("|");
     const normalizedValue = value
         .replace(/\[\s*(?:value)?\s*\]/gi, "")
-        .replace(/\s*,\s*(?=(?:Site|LOB|Scope|Seats|HC|Training start date \(CET or PST\)|Nesting\/Go-live):)/gi, "\n")
-        .replace(/\s+(?=(?:Site|LOB|Scope|Seats|HC|Training start date \(CET or PST\)|Nesting\/Go-live):)/gi, "\n")
-        .replace(/[ \t]+\n/g, "\n")
-        .replace(/\n{2,}/g, "\n");
-
-    const firstLabelIndex = normalizedValue.search(/(?:^|\n)Site\s*:/i);
-    const labeledText = firstLabelIndex >= 0
-        ? normalizedValue.slice(firstLabelIndex)
-        : "";
+        .replace(new RegExp(`,\\s*(?=(?:${labelPattern})\\s*:)`, "gi"), "\n")
+        .replace(new RegExp(`[ \\t]+(?=(?:${labelPattern})\\s*:)`, "gi"), "\n");
 
     return labels.map((label, index) => {
-        const nextLabels = labels.slice(index + 1)
-            .map(nextLabel => nextLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-            .join("|");
         const labelPattern = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const endPattern = nextLabels ? `(?=\\n(?:${nextLabels})\\s*:)` : "$";
-        const match = labeledText.match(new RegExp(`${labelPattern}\\s*:\\s*([\\s\\S]*?)${endPattern}`, "i"));
+        const match = normalizedValue.match(new RegExp(`(?:^|\\n)[ \\t]*${labelPattern}[ \\t]*:[ \\t]*([^\\n]*)`, "i"));
         const extractedValue = match?.[1]
             ?.replace(/\[\s*(?:value)?\s*\]/gi, "")
             .replace(/\s+/g, " ")
             .trim() || "";
         return `${label}: ${extractedValue}`;
+    }).join("\n");
+
+}
+
+function extractExplicitSummary(documentContent) {
+
+    const source = documentContent.sections
+        .find(section => /high level summary|general solution information|delivery center/i.test(section.text))
+        ?.text || "";
+    const lines = source
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean);
+    const findValue = pattern => {
+        const match = source.match(pattern);
+        return match?.[1]?.trim() || "";
+    };
+    const deliveryCenterIndex = lines.findIndex(line => /functions and hours of operation/i.test(line));
+    const site = deliveryCenterIndex >= 0
+        ? lines[deliveryCenterIndex + 1] || ""
+        : "";
+    const trainingStart = findValue(/Training start\s*:?\s*([^\n]+)/i);
+    const goLive = findValue(/Go-Live\s*:?\s*([^\n]+)/i).replace(/^n\s+/i, "");
+
+    return [
+        `Site: ${site}`,
+        "LOB:",
+        "Scope:",
+        "Seats:",
+        "HC:",
+        `Training start date (CET or PST): ${trainingStart}`,
+        `Nesting/Go-live: ${goLive}`
+    ].join("\n");
+
+}
+
+function mergeProjectSummary(aiValue, explicitValue) {
+
+    const aiLines = formatProjectSummary(aiValue || "").split("\n");
+    const explicitLines = formatProjectSummary(explicitValue || "").split("\n");
+    const labels = [
+        "Site",
+        "LOB",
+        "Scope",
+        "Seats",
+        "HC",
+        "Training start date (CET or PST)",
+        "Nesting/Go-live"
+    ];
+    const valueFor = (lines, label) => lines
+        .find(line => line.toLowerCase().startsWith(`${label.toLowerCase()}:`))
+        ?.slice(label.length + 1)
+        .trim() || "";
+
+    return labels.map(label => {
+        const explicitFieldValue = valueFor(explicitLines, label);
+        const aiFieldValue = valueFor(aiLines, label);
+        return `${label}: ${explicitFieldValue || aiFieldValue}`.trimEnd();
     }).join("\n");
 
 }
