@@ -41,6 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 
+
 // ===========================================
 // STEPPER
 // ===========================================
@@ -888,12 +889,13 @@ HOOP:
 
 For workType, inspect the source page or section containing General Solution Information, IT Transition Dates, or the highlighted Work Type entry. Extract the exact documented value, such as B&M, WAH, B&M only, WAH only, or both. Do not infer a work type when it is not stated; return an empty string instead.
 
-Put the complete Technology Solution Summary into projectScope, not projectSummary. Preserve every actual topic found in that summary and format it as separate sections with one detail per bullet, for example:
+Put the complete Technology Solution Summary into projectScope, not projectSummary. Preserve every actual topic found in that summary and format it as separate sections. Every detail line must start with exactly one dash and a space. Never leave a detail line bare. For example:
 Network:
 - detail
 - detail
 
 Internet:
+- detail
 - detail
 
 Use the actual headings from the document, including Network, Internet, Information Security, BC/DR, Tools & Applications, Voice Solution, Deskside, and Others when present. Do not include HTML tags.
@@ -994,6 +996,8 @@ function applyExtractedData(data) {
         if (field && !field.value && typeof value === "string") {
             const cleanedValue = name === "deliverables"
                 ? cleanDeliverables()
+                : name === "projectScope"
+                    ? formatProjectScope(value)
                 : name === "projectName"
                     ? cleanProjectName(value)
                     : cleanExtractedText(value);
@@ -1017,6 +1021,32 @@ function applyExtractedData(data) {
         (data.risks || []).filter(risk => risk.risk || risk.mitigation).forEach(risk => addRisk(risk));
         if (!riskGrid.children.length) addRisk();
     }
+
+}
+
+function formatProjectScope(value) {
+
+    const headings = new Set([
+        "Network",
+        "Internet",
+        "Information Security",
+        "BC/DR",
+        "Tools & Applications",
+        "Voice Solution",
+        "Deskside",
+        "Others"
+    ]);
+    const lines = cleanExtractedText(value)
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean);
+
+    return lines.map(line => {
+            const withoutBullet = line.replace(/^(?:[-*]|\u2022)\s*/, "").trim();
+        const heading = withoutBullet.replace(/:$/, "").trim();
+        if (headings.has(heading)) return `${heading}:`;
+        return `- ${withoutBullet}`;
+    }).join("\n");
 
 }
 
