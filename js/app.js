@@ -1249,17 +1249,23 @@ function formatTimelineDate(value) {
     const text = typeof value === "string" ? value.trim() : "";
     if (!text) return "";
 
-    const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    const date = isoMatch
-        ? new Date(Date.UTC(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3])))
-        : new Date(text);
-
-    if (Number.isNaN(date.getTime())) return text;
-
     const months = [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun",
         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     ];
+    const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const displayMatch = text.match(/^(\d{2})-([A-Za-z]{3})-(\d{4})$/);
+    const date = isoMatch
+        ? new Date(Date.UTC(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3])))
+        : displayMatch
+            ? new Date(Date.UTC(
+                Number(displayMatch[3]),
+                months.findIndex(month => month.toLowerCase() === displayMatch[2].toLowerCase()),
+                Number(displayMatch[1])
+            ))
+            : new Date(text);
+
+    if (Number.isNaN(date.getTime())) return text;
 
     return `${String(date.getUTCDate()).padStart(2, "0")}-${months[date.getUTCMonth()]}-${date.getUTCFullYear()}`;
 
