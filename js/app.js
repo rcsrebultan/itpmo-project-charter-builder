@@ -664,7 +664,15 @@ async function handleDocumentAnalysis() {
     const uploadSection = document.querySelector(".upload-area")?.closest(".card");
 
     if (!files.length) {
-        showStep(1);
+        setAIStatus("File not uploaded. Please upload a PDF or PPTX file before analyzing.", "error");
+        document.querySelector(".upload-next")?.setAttribute("hidden", "true");
+        return;
+    }
+
+    const unsupportedFile = files.find(file => !isSupportedDocument(file));
+    if (unsupportedFile) {
+        setAIStatus("Incorrect file format. Only PDF and PPTX files are accepted.", "error");
+        document.querySelector(".upload-next")?.setAttribute("hidden", "true");
         return;
     }
 
@@ -926,5 +934,15 @@ function cleanExtractedText(value) {
         .replace(/[ \t]+\n/g, "\n")
         .replace(/\n{3,}/g, "\n\n")
         .trim();
+
+}
+
+function isSupportedDocument(file) {
+
+    const fileName = file.name.toLowerCase();
+    return file.type === "application/pdf"
+        || file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        || fileName.endsWith(".pdf")
+        || fileName.endsWith(".pptx");
 
 }
