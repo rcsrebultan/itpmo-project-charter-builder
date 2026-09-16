@@ -532,7 +532,7 @@ async function generateDocx() {
     set(0, 0, charterName);
     set(1, 1, data.projectName);
     set(2, 1, data.projectSummary);
-    set(3, 1, "");
+    set(3, 1, data.projectManager);
     set(3, 3, data.solutionArchitect);
     set(4, 1, data.deliveryLocation);
     set(4, 3, data.workType);
