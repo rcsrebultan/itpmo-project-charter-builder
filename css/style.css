@@ -415,6 +415,19 @@ textarea {
     color: var(--danger);
 }
 
+.ai-progress {
+
+    display: block;
+
+    width: min(100%, 420px);
+
+    height: 8px;
+
+    margin-top: 8px;
+
+    accent-color: var(--accent);
+}
+
 .upload-actions button:disabled {
 
     cursor: wait;

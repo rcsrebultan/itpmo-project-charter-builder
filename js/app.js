@@ -626,13 +626,19 @@ async function runAIExtraction() {
 
 }
 
-function setAIStatus(message, state = "") {
+function setAIStatus(message, state = "", progress = null) {
 
     const status = document.querySelector(".ai-status");
+    const progressBar = document.querySelector(".ai-progress");
     if (!status) return;
 
     status.textContent = message;
     status.dataset.state = state;
+
+    if (progressBar && progress !== null) {
+        progressBar.hidden = false;
+        progressBar.value = progress;
+    }
 
 }
 
@@ -665,12 +671,12 @@ async function handleDocumentAnalysis() {
     if (analyzeButton) analyzeButton.disabled = true;
 
     try {
-        setAIStatus("Reading the uploaded document locally...", "working");
+        setAIStatus("Reading the uploaded document locally: 10%", "working", 10);
         const documentContent = await extractDocumentContent(files);
         await populateFromGemini(documentContent);
         if (uploadSection) uploadSection.dataset.analysisReady = "true";
         document.querySelector(".upload-next")?.removeAttribute("hidden");
-        setAIStatus("Analysis successful. Review the populated fields, then click Next to continue.", "success");
+        setAIStatus("Analysis successful: 100%. Review the populated fields, then click Next to continue.", "success", 100);
     } catch (error) {
         console.error(error);
         if (uploadSection) uploadSection.dataset.analysisReady = "false";
@@ -771,19 +777,20 @@ async function populateFromGemini(documentContent) {
     }
 
     setAIStatus(availability === "downloadable" || availability === "downloading"
-        ? "Chrome is preparing Gemini Nano. This may take a while the first time..."
-        : "Gemini Nano is reviewing the document...", "working");
+        ? "Preparing Gemini Nano: 25%"
+        : "Gemini Nano is reviewing the document: 75%", "working", 25);
 
     const session = await LanguageModel.create({
         ...options,
         monitor(monitor) {
             monitor.addEventListener("downloadprogress", event => {
-                setAIStatus(`Downloading Gemini Nano: ${Math.round(event.loaded * 100)}%`, "working");
+                const downloadProgress = Math.round(event.loaded * 100);
+                setAIStatus(`Downloading Gemini Nano: ${downloadProgress}%`, "working", 25 + Math.round(downloadProgress * .5));
             });
         }
     });
 
-    setAIStatus("Gemini Nano is ready. Reviewing the document...", "working");
+    setAIStatus("Gemini Nano is ready. Reviewing the document: 80%", "working", 80);
 
     const schema = {
         type: "object",
