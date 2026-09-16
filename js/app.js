@@ -114,7 +114,9 @@ function buildNavigation() {
 
         };
 
-        navContainer.appendChild(prevBtn);
+        if (index > 0) {
+            navContainer.appendChild(prevBtn);
+        }
         navContainer.appendChild(nextBtn);
 
         section.appendChild(navContainer);
