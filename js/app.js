@@ -189,13 +189,13 @@ function addTeamMember(member = {}) {
     memberCard.innerHTML = `
         <input
             type="text"
-            data-team-field="name"
-            placeholder="Name">
+            data-team-field="role"
+            placeholder="Role">
 
         <input
             type="text"
-            data-team-field="role"
-            placeholder="Role">
+            data-team-field="name"
+            placeholder="Name">
 
         <button
             class="remove-btn">
@@ -549,8 +549,8 @@ async function generateDocx() {
     for (let index = 0; index < 8; index++) {
         const member = teamMembers[index] || {};
         const rowIndex = 15 + index;
-        set(rowIndex, 0, member.name);
-        set(rowIndex, 1, member.role);
+        set(rowIndex, 0, member.role);
+        set(rowIndex, 1, member.name);
         set(rowIndex, 3, milestoneDates[index]);
     }
 
