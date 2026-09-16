@@ -359,7 +359,10 @@ function initializeFileUpload() {
 
     document
         .querySelector('[data-action="build-manually"]')
-        ?.addEventListener("click", () => showStep(1));
+            ?.addEventListener("click", () => {
+                applyManualTemplates();
+                showStep(1);
+            });
 
     ["dragenter", "dragover"].forEach(eventName => {
         uploadArea.addEventListener(eventName, (event) => {
@@ -1085,6 +1088,62 @@ function formatProjectSummary(value) {
 
 }
 
+function applyManualTemplates() {
+
+    const templates = {
+        projectSummary: [
+            "Site:",
+            "LOB:",
+            "Scope:",
+            "Seats:",
+            "HC:",
+            "Training start date (CET or PST):",
+            "Nesting/Go-live:",
+            "HOOP:"
+        ].join("\n"),
+        projectScope: [
+            "Network:",
+            "-",
+            "-",
+            "",
+            "Internet:",
+            "-",
+            "-",
+            "",
+            "Information Security:",
+            "-",
+            "-",
+            "",
+            "BC/DR:",
+            "-",
+            "-",
+            "",
+            "Tools & Applications",
+            "-",
+            "-",
+            "",
+            "Voice Solution",
+            "-",
+            "-",
+            "",
+            "Deskside",
+            "-",
+            "-",
+            "",
+            "Others",
+            "-",
+            "-"
+        ].join("\n"),
+        deliverables: cleanDeliverables()
+    };
+
+    Object.entries(templates).forEach(([name, value]) => {
+        const field = document.querySelector(`[data-field="${name}"]`);
+        if (field && !field.value.trim()) field.value = value;
+    });
+
+}
+
 function extractExplicitSummary(documentContent) {
 
     const source = documentContent.sections
@@ -1180,6 +1239,10 @@ function cleanDeliverables() {
         "-",
         "",
         "Voice and Telephony:",
+        "-",
+        "-",
+        "",
+        "Others:",
         "-",
         "-"
     ].join("\n");
