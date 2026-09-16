@@ -367,6 +367,15 @@ textarea {
     background: rgba(59,130,246,.05);
 }
 
+.upload-area.drag-over {
+
+    border-color: var(--accent);
+
+    background: rgba(59,130,246,.12);
+
+    transform: translateY(-2px);
+}
+
 .upload-area i {
 
     font-size: 48px;
@@ -378,6 +387,20 @@ textarea {
 
 .upload-area input {
     margin-top: 15px;
+}
+
+.uploaded-file {
+
+    padding: 8px 0;
+
+    color: var(--text-secondary);
+}
+
+.upload-error {
+
+    margin-bottom: 8px;
+
+    color: var(--danger);
 }
 
 /* ========================================

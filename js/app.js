@@ -239,12 +239,15 @@ function addRisk() {
 
 function initializeFileUpload() {
 
+    const uploadArea =
+        document.querySelector(".upload-area");
+
     const fileInput =
         document.querySelector(
             '.upload-area input[type="file"]'
         );
 
-    if (!fileInput) return;
+    if (!uploadArea || !fileInput) return;
 
     const fileList =
         document.createElement("div");
@@ -256,23 +259,69 @@ function initializeFileUpload() {
     fileInput.parentElement
         .appendChild(fileList);
 
-    fileInput.addEventListener("change", (e) => {
+    const handleFiles = (files) => {
+
+        const supportedFiles = [...files].filter(file => {
+            const fileName = file.name.toLowerCase();
+            return file.type === "application/pdf"
+                || file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                || fileName.endsWith(".pdf")
+                || fileName.endsWith(".pptx");
+        });
 
         fileList.innerHTML = "";
 
-        [...e.target.files].forEach(file => {
+        if (supportedFiles.length !== files.length) {
+            const error = document.createElement("p");
+            error.className = "upload-error";
+            error.textContent = "Only PDF and PPTX files are supported.";
+            fileList.appendChild(error);
+        }
+
+        supportedFiles.forEach(file => {
 
             const item =
                 document.createElement("div");
 
-            item.innerHTML = `
-                📄 ${file.name}
-            `;
+            item.className = "uploaded-file";
+            item.textContent = file.name;
 
             fileList.appendChild(item);
 
         });
 
+    };
+
+    fileInput.addEventListener("change", (event) => {
+        handleFiles(event.target.files);
+    });
+
+    ["dragenter", "dragover"].forEach(eventName => {
+        uploadArea.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            uploadArea.classList.add("drag-over");
+        });
+    });
+
+    ["dragleave", "drop"].forEach(eventName => {
+        uploadArea.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            uploadArea.classList.remove("drag-over");
+        });
+    });
+
+    uploadArea.addEventListener("drop", (event) => {
+        const files = event.dataTransfer.files;
+
+        try {
+            const dataTransfer = new DataTransfer();
+            [...files].forEach(file => dataTransfer.items.add(file));
+            fileInput.files = dataTransfer.files;
+        } catch (error) {
+            fileInput.value = "";
+        }
+
+        handleFiles(files);
     });
 
 }
