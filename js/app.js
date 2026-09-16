@@ -483,7 +483,7 @@ async function generateDocx() {
         data.cet,
         data.pst,
         data.goLive
-    ];
+    ].map(value => typeof value === "string" ? value.trim() : "");
 
     for (let index = 0; index < 8; index++) {
         const member = teamMembers[index] || {};
