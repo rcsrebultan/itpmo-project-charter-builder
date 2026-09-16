@@ -828,7 +828,7 @@ async function populateFromGemini(documentContent) {
     const summaryText = summarySection?.text || documentContent.text;
     const promptText = `Extract only facts from the supplied document. Do not invent names, dates, numbers, or locations. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, projectManager, solutionArchitect.
 
-Use the explicit document title for projectName. Format projectSummary exactly with these labels, one per line. Put a value after the colon only when that value is explicitly stated in the document; otherwise leave it empty. Do not write an introduction, explanation, summary paragraph, or any text outside these seven labels. Do not use square brackets, commas between fields, or HTML:
+Use the explicit document title for projectName. If the title starts with "Technology Solution for", remove that phrase and keep only the client name as projectName. Format projectSummary exactly with these labels, one per line. Put a value after the colon only when that value is explicitly stated in the document; otherwise leave it empty. Do not write an introduction, explanation, summary paragraph, or any text outside these seven labels. Do not use square brackets, commas between fields, or HTML:
 Site:
 LOB:
 Scope:
@@ -848,7 +848,28 @@ Internet:
 
 Use the actual headings from the document, including Network, Internet, Information Security, BC/DR, Tools & Applications, Voice Solution, Deskside, and Others when present. Do not include HTML tags.
 
-For deliverables, create a plain-text list of practical work items derived from the documented requirements. Group related work items under these workstreams when supported by the document: Network, Network Security, Server, IT Operations, and Voice and Telephony. Generate the actual work items from the document; never output the word "task" as a placeholder and never copy this instruction into the result. If a workstream has no supporting requirement, omit that workstream entirely. For HC, use explicit non-peak and peak staffing values when present. For HOOP, use explicit weekday and weekend operating hours when present. Return plain text only inside all string values.
+For deliverables, return exactly this plain-text template and do not add, remove, or fill any lines. Leave the two hyphen lines under each heading blank so the user can fill them in later:
+Network:
+-
+-
+
+Network Security:
+-
+-
+
+Server:
+-
+-
+
+IT Ops:
+-
+-
+
+Voice and Telephony:
+-
+-
+
+For HC, use explicit non-peak and peak staffing values when present. For HOOP, use explicit weekday and weekend operating hours when present. Return plain text only inside all string values.
 
 DOCUMENT TITLE:
 ${documentContent.title}
@@ -917,8 +938,10 @@ function applyExtractedData(data) {
         const field = document.querySelector(`[data-field="${name}"]`);
         if (field && !field.value && typeof value === "string") {
             const cleanedValue = name === "deliverables"
-                ? cleanDeliverables(value)
-                : cleanExtractedText(value);
+                ? cleanDeliverables()
+                : name === "projectName"
+                    ? cleanProjectName(value)
+                    : cleanExtractedText(value);
             field.value = name === "projectSummary"
                 ? formatProjectSummary(cleanedValue)
                 : cleanedValue;
@@ -1101,13 +1124,36 @@ function mergeProjectSummary(aiValue, explicitValue) {
 
 }
 
-function cleanDeliverables(value) {
+function cleanDeliverables() {
+
+    return [
+        "Network:",
+        "-",
+        "-",
+        "",
+        "Network Security:",
+        "-",
+        "-",
+        "",
+        "Server:",
+        "-",
+        "-",
+        "",
+        "IT Ops:",
+        "-",
+        "-",
+        "",
+        "Voice and Telephony:",
+        "-",
+        "-"
+    ].join("\n");
+
+}
+
+function cleanProjectName(value) {
 
     return cleanExtractedText(value)
-        .split(/\r?\n/)
-        .filter(line => !/^\s*[-*•]?\s*tasks?\s*:?\s*$/i.test(line))
-        .join("\n")
-        .replace(/\n{3,}/g, "\n\n")
+        .replace(/^\s*technology\s+solution\s+for\s*:?[\s-]*/i, "")
         .trim();
 
 }
