@@ -836,6 +836,7 @@ Seats:
 HC:
 Training start date (CET or PST):
 Nesting/Go-live:
+HOOP:
 
 Put the complete Technology Solution Summary into projectScope, not projectSummary. Preserve every actual topic found in that summary and format it as separate sections with one detail per bullet, for example:
 Network:
@@ -863,7 +864,7 @@ IT Operations:
 Voice and Telephony:
 - task
 
-If a workstream has no supporting requirement, leave its task list blank. Return plain text only inside all string values.
+If a workstream has no supporting requirement, leave its task list blank. For HC, use explicit non-peak and peak staffing values when present. For HOOP, use explicit weekday and weekend operating hours when present. Return plain text only inside all string values.
 
 DOCUMENT TITLE:
 ${documentContent.title}
@@ -1016,7 +1017,8 @@ function formatProjectSummary(value) {
         "Seats",
         "HC",
         "Training start date (CET or PST)",
-        "Nesting/Go-live"
+        "Nesting/Go-live",
+        "HOOP"
     ];
     const labelPattern = labels
         .map(label => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
@@ -1052,9 +1054,24 @@ function extractExplicitSummary(documentContent) {
         return match?.[1]?.trim() || "";
     };
     const deliveryCenterIndex = lines.findIndex(line => /functions and hours of operation/i.test(line));
-    const site = deliveryCenterIndex >= 0
-        ? lines[deliveryCenterIndex + 1] || ""
+    const deliveryCenterText = source.match(/Delivery Center[\s\S]*?(?=Data Network Solution|Voice Solution)/i)?.[0] || source;
+    const siteMatch = deliveryCenterText.match(/(Philippines|Thailand|India|Mexico|United States|Canada)\s*\n\s*([^\n]+)/i);
+    const site = siteMatch
+        ? `${siteMatch[1].trim()} - ${siteMatch[2].trim()}`
         : "";
+    const nonPeak = source.match(/HC and Seats Non Peak[^\n]*?Agents\s*[–-]\s*([^;\n]+);\s*Support Staff\s*[–-]\s*([^\n]+)/i);
+    const peak = source.match(/HC and Seats Peak[^\n]*?Agents\s*[–-]\s*([^;\n]+);\s*Support Staff\s*[–-]\s*([^\n]+)/i);
+    const formatHeadcount = match => match
+        ? `Agents - ${match[1].trim()}, Support Staff - ${match[2].trim()}`
+        : "";
+    const nonPeakValue = formatHeadcount(nonPeak);
+    const peakValue = formatHeadcount(peak);
+    const hc = [nonPeakValue ? `(non-peak) ${nonPeakValue}` : "", peakValue ? `(peak) ${peakValue}` : ""]
+        .filter(Boolean)
+        .join(" | ");
+    const hoopMatches = [...source.matchAll(/(?:Operating hours are|Weekend operating hours are)\s+([^\n]+)/gi)]
+        .map(match => match[1].trim());
+    const hoop = hoopMatches.join(" | ");
     const trainingStart = findValue(/Training start\s*:?\s*([^\n]+)/i);
     const goLive = findValue(/Go-Live\s*:?\s*([^\n]+)/i).replace(/^n\s+/i, "");
 
@@ -1063,9 +1080,10 @@ function extractExplicitSummary(documentContent) {
         "LOB:",
         "Scope:",
         "Seats:",
-        "HC:",
+        `HC: ${hc}`,
         `Training start date (CET or PST): ${trainingStart}`,
-        `Nesting/Go-live: ${goLive}`
+        `Nesting/Go-live: ${goLive}`,
+        `HOOP: ${hoop}`
     ].join("\n");
 
 }
@@ -1081,7 +1099,8 @@ function mergeProjectSummary(aiValue, explicitValue) {
         "Seats",
         "HC",
         "Training start date (CET or PST)",
-        "Nesting/Go-live"
+        "Nesting/Go-live",
+        "HOOP"
     ];
     const valueFor = (lines, label) => lines
         .find(line => line.toLowerCase().startsWith(`${label.toLowerCase()}:`))
