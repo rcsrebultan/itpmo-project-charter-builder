@@ -656,6 +656,7 @@ async function handleDocumentAnalysis() {
 async function extractDocumentContent(files) {
 
     const textParts = [];
+    const sections = [];
     const images = [];
 
     for (const file of files) {
@@ -665,7 +666,9 @@ async function extractDocumentContent(files) {
             for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
                 const page = await pdf.getPage(pageNumber);
                 const content = await page.getTextContent();
-                textParts.push(`PDF ${file.name}, page ${pageNumber}:\n${content.items.map(item => item.str).join(" ")}`);
+                const pageText = content.items.map(item => item.str).join(" ");
+                textParts.push(`PDF ${file.name}, page ${pageNumber}:\n${pageText}`);
+                sections.push({ label: `PDF page ${pageNumber}`, text: pageText });
 
                 const viewport = page.getViewport({ scale: 1 });
                 const canvas = document.createElement("canvas");
@@ -687,6 +690,7 @@ async function extractDocumentContent(files) {
                     .map(node => node.textContent)
                     .join(" ");
                 textParts.push(`PPTX ${file.name}, ${slideName}:\n${slideText}`);
+                sections.push({ label: slideName, text: slideText });
             }
 
             for (const name of Object.keys(zip.files).filter(item => item.startsWith("ppt/media/"))) {
@@ -708,7 +712,7 @@ async function extractDocumentContent(files) {
         }
     }
 
-    return { text: textParts.join("\n\n"), images };
+    return { text: textParts.join("\n\n"), sections, images };
 
 }
 
@@ -761,7 +765,10 @@ async function populateFromGemini(documentContent) {
         additionalProperties: false
     };
 
-    const promptText = `Extract explicit facts only. Do not guess or invent. Missing values must be empty. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, projectManager, solutionArchitect.\n\nDOCUMENT:\n${documentContent.text.slice(0, 800)}`;
+    const technologySection = documentContent.sections
+        .find(section => /technology solution summary/i.test(section.text));
+    const sourceText = technologySection?.text || documentContent.text;
+    const promptText = `Extract explicit facts only. Do not guess or invent. Missing values must be empty. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, projectManager, solutionArchitect. Copy all text and headings from the Technology Solution Summary section into projectSummary. Do not shorten it to a title.\n\nDOCUMENT:\n${sourceText.slice(0, 7000)}`;
     let response;
 
     try {
