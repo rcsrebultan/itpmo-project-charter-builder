@@ -557,7 +557,7 @@ textarea {
 
     display: grid;
 
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
 
     gap: 20px;
 }
@@ -582,8 +582,8 @@ textarea {
 }
 
 .risk-card .remove-btn {
-    grid-column: 1 / -1;
-    justify-self: start;
+    align-self: start;
+    justify-self: end;
 }
 
 /* ========================================
@@ -696,14 +696,6 @@ textarea {
         grid-auto-flow: row;
     }
 
-    .risk-card {
-        grid-template-columns: 1fr;
-    }
-
-    .risk-card .remove-btn {
-        grid-column: auto;
-    }
-}
 
 .step.completed {
     background: rgba(16,185,129,.15);
