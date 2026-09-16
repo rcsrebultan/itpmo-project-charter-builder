@@ -621,6 +621,10 @@ textarea {
     margin-top: 25px;
 }
 
+.step-navigation.upload-navigation {
+    justify-content: flex-end;
+}
+
 .remove-btn {
     background: #ef4444;
     color: white;

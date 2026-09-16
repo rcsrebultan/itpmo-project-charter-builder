@@ -70,6 +70,10 @@ function buildNavigation() {
 
         navContainer.className = "step-navigation";
 
+        if (index === 0) {
+            navContainer.classList.add("upload-navigation");
+        }
+
         const prevBtn = document.createElement("button");
 
         prevBtn.className = "secondary-btn";
@@ -479,12 +483,18 @@ async function generateDocx() {
             .filter(node => node.localName === "r")
             .forEach(run => run.remove());
 
-        const run = xml.createElementNS(namespace, "w:r");
-        const text = xml.createElementNS(namespace, "w:t");
-        text.setAttributeNS("http://www.w3.org/XML/1998/namespace", "xml:space", "preserve");
-        text.textContent = value || "";
-        run.appendChild(text);
-        paragraph.appendChild(run);
+        String(value || "").split(/\r?\n/).forEach((line, index) => {
+            if (index > 0) {
+                paragraph.appendChild(xml.createElementNS(namespace, "w:br"));
+            }
+
+            const run = xml.createElementNS(namespace, "w:r");
+            const text = xml.createElementNS(namespace, "w:t");
+            text.setAttributeNS("http://www.w3.org/XML/1998/namespace", "xml:space", "preserve");
+            text.textContent = line;
+            run.appendChild(text);
+            paragraph.appendChild(run);
+        });
     };
 
     const cells = rowIndex => [...rows[rowIndex].getElementsByTagNameNS(namespace, "tc")];
@@ -677,6 +687,7 @@ async function extractDocumentContent(files) {
     const textParts = [];
     const sections = [];
     const images = [];
+    const titleParts = [];
 
     for (const file of files) {
         if (file.name.toLowerCase().endsWith(".pdf")) {
@@ -688,6 +699,7 @@ async function extractDocumentContent(files) {
                 const pageText = content.items.map(item => item.str).join(" ");
                 textParts.push(`PDF ${file.name}, page ${pageNumber}:\n${pageText}`);
                 sections.push({ label: `PDF page ${pageNumber}`, text: pageText });
+                if (pageNumber === 1) titleParts.push(pageText.slice(0, 300));
 
                 const viewport = page.getViewport({ scale: 1 });
                 const canvas = document.createElement("canvas");
@@ -705,11 +717,15 @@ async function extractDocumentContent(files) {
 
             for (const slideName of slideNames) {
                 const xml = new DOMParser().parseFromString(await zip.file(slideName).async("string"), "application/xml");
-                const slideText = [...xml.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "t")]
-                    .map(node => node.textContent)
-                    .join(" ");
+                const slideParagraphs = [...xml.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "p")]
+                    .map(paragraph => [...paragraph.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "t")]
+                        .map(node => node.textContent)
+                        .join(""))
+                    .filter(Boolean);
+                const slideText = slideParagraphs.join("\n");
                 textParts.push(`PPTX ${file.name}, ${slideName}:\n${slideText}`);
                 sections.push({ label: slideName, text: slideText });
+                if (slideName === "ppt/slides/slide1.xml") titleParts.push(slideText.slice(0, 300));
             }
 
             for (const name of Object.keys(zip.files).filter(item => item.startsWith("ppt/media/"))) {
@@ -731,7 +747,7 @@ async function extractDocumentContent(files) {
         }
     }
 
-    return { text: textParts.join("\n\n"), sections, images };
+    return { text: textParts.join("\n\n"), sections, images, title: titleParts.join("\n") };
 
 }
 
@@ -789,7 +805,7 @@ async function populateFromGemini(documentContent) {
     const technologySection = documentContent.sections
         .find(section => /technology solution summary/i.test(section.text));
     const sourceText = technologySection?.text || documentContent.text;
-    const promptText = `Extract explicit facts only. Do not guess or invent. Missing values must be empty. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, projectManager, solutionArchitect. Copy all text and headings from the Technology Solution Summary section into projectSummary. Do not shorten it to a title.\n\nDOCUMENT:\n${sourceText.slice(0, 7000)}`;
+    const promptText = `Extract explicit facts only. Do not guess or invent. Missing values must be empty. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, projectManager, solutionArchitect. Use the explicit document title below for projectName. Copy all text and headings from the Technology Solution Summary section into projectSummary. Preserve topic headings, bullet lines, and line breaks; do not shorten it to a title.\n\nDOCUMENT TITLE:\n${documentContent.title}\n\nTECHNOLOGY SUMMARY:\n${sourceText.slice(0, 7000)}`;
     let response;
 
     try {
