@@ -814,12 +814,13 @@ async function populateFromGemini(documentContent) {
             projectSummary: { type: "string" },
             projectScope: { type: "string" },
             deliverables: { type: "string" },
+            workType: { type: "string" },
             projectManager: { type: "string" },
             solutionArchitect: { type: "string" }
         },
         required: [
             "projectName", "projectSummary", "projectScope", "deliverables",
-            "projectManager", "solutionArchitect"
+            "workType", "projectManager", "solutionArchitect"
         ],
         additionalProperties: false
     };
@@ -830,7 +831,9 @@ async function populateFromGemini(documentContent) {
     const summarySection = documentContent.sections
         .find(section => /high level summary|general solution information|delivery center/i.test(section.text));
     const summaryText = summarySection?.text || documentContent.text;
-    const promptText = `Extract only facts from the supplied document. Do not invent names, dates, numbers, or locations. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, projectManager, solutionArchitect.
+    const workTypeSection = documentContent.sections
+        .find(section => /work\s*type|general solution information|IT transition dates/i.test(section.text));
+    const promptText = `Extract only facts from the supplied document. Do not invent names, dates, numbers, or locations. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, workType, projectManager, solutionArchitect.
 
 Use the explicit document title for projectName. If the title starts with "Technology Solution for", remove that phrase and keep only the client name as projectName. Format projectSummary exactly with these labels, one per line. Put a value after the colon only when that value is explicitly stated in the document; otherwise leave it empty. Do not write an introduction, explanation, summary paragraph, or any text outside these seven labels. Do not use square brackets, commas between fields, or HTML:
 Site:
@@ -841,6 +844,8 @@ HC:
 Training start date (CET or PST):
 Nesting/Go-live:
 HOOP:
+
+For workType, inspect the source page or section containing General Solution Information, IT Transition Dates, or the highlighted Work Type entry. Extract the exact documented value, such as B&M, WAH, B&M only, WAH only, or both. Do not infer a work type when it is not stated; return an empty string instead.
 
 Put the complete Technology Solution Summary into projectScope, not projectSummary. Preserve every actual topic found in that summary and format it as separate sections with one detail per bullet, for example:
 Network:
@@ -882,7 +887,10 @@ HIGH-LEVEL SOURCE:
 ${summaryText.slice(0, 3500)}
 
 TECHNOLOGY SUMMARY:
-${sourceText.slice(0, 6500)}`;
+${sourceText.slice(0, 6500)}
+
+WORK TYPE SOURCE SECTION:
+${workTypeSection?.text?.slice(0, 1500) || "Not found in extracted text; inspect the supplied page image."}`;
     let response;
 
     try {
@@ -916,6 +924,8 @@ ${sourceText.slice(0, 6500)}`;
     } catch (error) {
         throw new Error("Gemini returned an unreadable response instead of structured fields");
     }
+
+    data.workType = data.workType || extractWorkType(documentContent.text);
 
     const populatedCount = Object.entries(data)
         .filter(([name, value]) => !["teamMembers", "risks"].includes(name)
@@ -1161,5 +1171,16 @@ function cleanProjectName(value) {
     return cleanExtractedText(value)
         .replace(/^\s*technology\s+solution\s+for\s*:?[\s-]*/i, "")
         .trim();
+
+}
+
+function extractWorkType(value) {
+
+    const match = value
+        .match(/work\s*type\s*:?\s*(B\s*&\s*M|WAH)(?:\s+only)?/i);
+
+    return match?.[0]
+        ?.replace(/^.*?:\s*/i, "")
+        .trim() || "";
 
 }
