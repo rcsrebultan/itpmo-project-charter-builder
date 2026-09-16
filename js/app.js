@@ -502,8 +502,11 @@ async function generateDocx() {
 
     const cells = rowIndex => [...rows[rowIndex].getElementsByTagNameNS(namespace, "tc")];
     const set = (rowIndex, cellIndex, value) => cellText(cells(rowIndex)[cellIndex], value);
+    const projectName = String(data.projectName || "Untitled Project").trim();
+    const edrNumber = String(data.edrNumber || "").trim();
+    const charterName = `Project Charter - ${projectName}${edrNumber ? ` - EDR ${edrNumber}` : ""}`;
 
-    set(0, 0, `Project Charter - ${data.projectName || ""}`);
+    set(0, 0, charterName);
     set(1, 1, data.projectName);
     set(2, 1, data.projectSummary);
     set(3, 1, data.projectManager);
@@ -546,7 +549,7 @@ async function generateDocx() {
     const downloadUrl = URL.createObjectURL(blob);
     const link = window.document.createElement("a");
     link.href = downloadUrl;
-    link.download = `${data.projectName || "project-charter"}.docx`;
+    link.download = `Project Charter - ${projectName}.docx`;
     link.click();
     URL.revokeObjectURL(downloadUrl);
 
