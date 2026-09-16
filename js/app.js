@@ -828,14 +828,14 @@ async function populateFromGemini(documentContent) {
     const summaryText = summarySection?.text || documentContent.text;
     const promptText = `Extract only facts from the supplied document. Do not invent names, dates, numbers, or locations. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, projectManager, solutionArchitect.
 
-Use the explicit document title for projectName. Format projectSummary exactly with these labels, one per line, leaving a value blank when it is not stated:
-Site: [value]
-LOB: [value]
-Scope: [value]
-Seats: [value]
-HC: [value]
-Training start date (CET or PST): [value]
-Nesting/Go-live: [value]
+Use the explicit document title for projectName. Format projectSummary exactly with these labels, one per line. Put the extracted value after the colon, or leave the line empty after the colon when it is not stated. Do not use square brackets, commas between fields, or HTML:
+Site:
+LOB:
+Scope:
+Seats:
+HC:
+Training start date (CET or PST):
+Nesting/Go-live:
 
 Put the complete Technology Solution Summary into projectScope, not projectSummary. Preserve every actual topic found in that summary and format it as separate sections with one detail per bullet, for example:
 Network:
@@ -926,7 +926,10 @@ function applyExtractedData(data) {
         if (name === "teamMembers" || name === "risks") return;
         const field = document.querySelector(`[data-field="${name}"]`);
         if (field && !field.value && typeof value === "string") {
-            field.value = cleanExtractedText(value);
+            const cleanedValue = cleanExtractedText(value);
+            field.value = name === "projectSummary"
+                ? formatProjectSummary(cleanedValue)
+                : cleanedValue;
         }
     });
 
@@ -996,5 +999,17 @@ function isSupportedDocument(file) {
         || file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
         || fileName.endsWith(".pdf")
         || fileName.endsWith(".pptx");
+
+}
+
+function formatProjectSummary(value) {
+
+    return value
+        .replace(/\[\s*(?:value)?\s*\]/gi, "")
+        .replace(/\s*,\s*(?=(?:Site|LOB|Scope|Seats|HC|Training start date \(CET or PST\)|Nesting\/Go-live):)/gi, "\n")
+        .replace(/\s+(?=(?:Site|LOB|Scope|Seats|HC|Training start date \(CET or PST\)|Nesting\/Go-live):)/gi, "\n")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{2,}/g, "\n")
+        .trim();
 
 }
