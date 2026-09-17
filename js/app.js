@@ -1076,10 +1076,12 @@ async function populateFromGemini(documentContent) {
     }
 
     const hasExtractedText = Boolean(documentContent.text.trim());
+    const hasImages = documentContent.images.length > 0;
     const options = {
-        expectedInputs: hasExtractedText
-            ? [{ type: "text", languages: ["en"] }]
-            : [{ type: "text", languages: ["en"] }, { type: "image" }],
+        expectedInputs: [
+            { type: "text", languages: ["en"] },
+            ...(hasImages ? [{ type: "image" }] : [])
+        ],
         expectedOutputs: [{ type: "text", languages: ["en"] }]
     };
     const availability = await LanguageModel.availability(options);
