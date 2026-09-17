@@ -1114,7 +1114,19 @@ async function populateFromGemini(documentContent) {
             projectScope: { type: "string" },
             deliverables: { type: "string" },
             workType: { type: "string" },
-            solutionArchitect: { type: "string" }
+            solutionArchitect: { type: "string" },
+            evidence: {
+                type: "object",
+                properties: {
+                    projectName: { type: "string" },
+                    projectSummary: { type: "string" },
+                    projectScope: { type: "string" },
+                    deliverables: { type: "string" },
+                    workType: { type: "string" },
+                    solutionArchitect: { type: "string" }
+                },
+                additionalProperties: false
+            }
         },
         required: [
             "projectName", "projectSummary", "projectScope", "deliverables",
@@ -1123,9 +1135,11 @@ async function populateFromGemini(documentContent) {
         additionalProperties: false
     };
 
-    const promptText = `Extract only facts from the supplied document. Do not invent, infer, guess, or hallucinate any value. Return only valid JSON with exactly these keys: projectName, projectSummary, projectScope, deliverables, workType, solutionArchitect.
+    const promptText = `Extract only facts from the supplied document. Do not invent, infer, guess, or hallucinate any value. Return only valid JSON with these keys: projectName, projectSummary, projectScope, deliverables, workType, solutionArchitect, and optional evidence.
 
 If a value is not explicitly present in the document, return an empty string for that field. Never return explanations, disclaimers, search instructions, or phrases such as "not explicitly mentioned", "not found", "unknown", "not available", or "consulting from". Missing data must remain blank.
+
+For evidence, return a brief exact quote copied from the document for each populated field. If the field is blank, its evidence must also be blank. Do not create evidence text or paraphrase the source.
 
 Use the explicit document title for projectName. If the title starts with "Technology Solution for", remove that phrase and keep only the client name as projectName. Format projectSummary exactly with these labels, one per line. Put a value after the colon only when that value is explicitly stated in the document; otherwise leave it empty. Do not write an introduction, explanation, summary paragraph, or any text outside these eight labels. Do not use square brackets, commas between fields, or HTML:
 Location:
@@ -1215,6 +1229,7 @@ ${documentContent.text}`;
     }
 
     sanitizeAIValues(data);
+    validateAIData(data, documentContent);
     data.workType = data.workType || extractWorkType(documentContent.text);
     data.solutionArchitect = extractITSA(documentContent.text) || data.solutionArchitect;
     data.projectScope = sanitizeProjectScope(data.projectScope, documentContent.text);
@@ -1721,6 +1736,49 @@ function sanitizeAIValues(data) {
             data[name] = "";
         }
     });
+
+}
+
+function validateAIData(data, documentContent) {
+
+    const sourceText = normalizeForSourceMatch(documentContent.text);
+    const evidence = data.evidence || {};
+    const fields = ["projectName", "workType", "solutionArchitect"];
+
+    fields.forEach(field => {
+        const value = String(data[field] || "").trim();
+        if (!value) return;
+
+        const evidenceText = normalizeForSourceMatch(evidence[field]);
+        const valueText = normalizeForSourceMatch(value);
+        const supportedByText = sourceText && sourceText.includes(valueText);
+        const supportedByEvidence = evidenceText && evidenceText.includes(valueText);
+
+        if (!supportedByText && !supportedByEvidence) {
+            data[field] = "";
+        }
+    });
+
+    if (data.projectSummary && sourceText) {
+        data.projectSummary = formatProjectSummary(data.projectSummary)
+            .split(/\r?\n/)
+            .map(line => {
+                const separator = line.indexOf(":");
+                if (separator < 0) return line;
+                const label = line.slice(0, separator).trim();
+                const value = line.slice(separator + 1).trim();
+                return value && !sourceText.includes(normalizeForSourceMatch(value))
+                    ? `${label}:`
+                    : line;
+            })
+            .join("\n");
+    }
+
+    if (data.evidence) {
+        Object.keys(data.evidence).forEach(field => {
+            if (!data[field]) data.evidence[field] = "";
+        });
+    }
 
 }
 

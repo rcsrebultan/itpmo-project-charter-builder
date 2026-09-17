@@ -55,8 +55,10 @@
 - Instructed Gemini Nano to copy readable source wording rather than summarize or expand it.
 - Instructed Gemini Nano not to infer missing details, expand abbreviations, combine bullets, or fill empty categories.
 - Added source-text fallback extraction for scope categories that Nano misses.
-- Require future extraction improvements to retain source text and slide references for each captured bullet.
-- Recommended validating every AI-generated bullet against the uploaded document before displaying it.
+- Added optional exact-source evidence quotes to Gemini's extraction response.
+- Added validation that blanks unsupported Project Name, Work Type, Solution Architect, and Project Summary values.
+- Validated populated scalar fields against extracted document text or returned evidence before displaying them.
+- Recommended retaining slide/page references for each captured bullet in a future evidence-display enhancement.
 
 ### Deployment
 
