@@ -1266,13 +1266,11 @@ ${documentContent.text}`;
 function applyExtractedData(data) {
 
     Object.entries(data).forEach(([name, value]) => {
-        if (name === "teamMembers" || name === "risks") return;
+        if (name === "teamMembers" || name === "risks" || name === "deliverables") return;
         const field = document.querySelector(`[data-field="${name}"]`);
         if (field && !field.value && typeof value === "string") {
-            const cleanedValue = name === "deliverables"
-                ? standardizeDeliverables(value)
-                : name === "projectScope"
-                    ? standardizeProjectScope(value)
+            const cleanedValue = name === "projectScope"
+                ? standardizeProjectScope(value)
                 : name === "projectName"
                     ? cleanProjectName(value)
                     : cleanExtractedText(value);
