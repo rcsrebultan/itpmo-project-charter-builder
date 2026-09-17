@@ -1950,7 +1950,8 @@ function standardizeProjectSummary(value) {
 
 function extractScopeSections(source, headings) {
 
-    const lines = cleanExtractedText(String(source || ""))
+    const cleanedSource = cleanExtractedText(String(source || ""));
+    const lines = cleanedSource
         .split(/\r?\n/)
         .map(line => line.trim());
     const normalizedHeadings = headings.map(heading => normalizeForSourceMatch(heading));
@@ -1960,21 +1961,37 @@ function extractScopeSections(source, headings) {
         const headingPosition = lines.findIndex(line => normalizeForSourceMatch(
             line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim()
         ) === normalizedHeadings[headingIndex]);
-        if (headingPosition < 0) return;
-
         const nextPositions = normalizedHeadings
             .map((normalized, index) => index > headingIndex
-                ? lines.findIndex((line, lineIndex) => lineIndex > headingPosition
+                ? lines.findIndex((line, lineIndex) => lineIndex > Math.max(headingPosition, -1)
                     && normalizeForSourceMatch(line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim()) === normalized)
                 : -1)
             .filter(position => position >= 0);
         const endPosition = nextPositions.length ? Math.min(...nextPositions) : lines.length;
-        const details = lines.slice(headingPosition + 1, endPosition)
+        let details = headingPosition >= 0
+            ? lines.slice(headingPosition + 1, endPosition)
             .filter(line => line && !normalizedHeadings.includes(normalizeForSourceMatch(
                 line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim()
             )))
             .map(line => line.replace(/^(?:[-*]|\u2022)\s*/, "").trim())
-            .filter(line => line && line !== "-");
+            .filter(line => line && line !== "-")
+            : [];
+
+        if (!details.length) {
+            const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const otherHeadings = headings
+                .filter(candidate => candidate !== heading)
+                .map(candidate => candidate.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+                .join("|");
+            const sectionMatch = cleanedSource.match(new RegExp(
+                `${escapedHeading}\\s*:\\s*([\\s\\S]*?)(?=\\n?\\s*(?:${otherHeadings})\\s*:|$)`,
+                "i"
+            ));
+            details = (sectionMatch?.[1] || "")
+                .split(/\r?\n|\s+-\s+/)
+                .map(line => line.replace(/^(?:[-*]|\u2022)\s*/, "").trim())
+                .filter(line => line && line !== "-");
+        }
 
         sections.push([`${heading}:`, ...details].join("\n"));
     });
