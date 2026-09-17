@@ -1139,7 +1139,7 @@ HOOP:
 
 For workType, inspect the source page or section containing General Solution Information, IT Transition Dates, or the highlighted Work Type entry. Extract the exact documented value, such as B&M, WAH, B&M only, WAH only, or both. Do not infer a work type when it is not stated; return an empty string instead.
 
-Put the complete Technology Solution Summary into projectScope, not projectSummary. Use only wording and facts explicitly present in the supplied document. Do not add assumptions, recommendations, plausible details, or general industry knowledge. If a scope detail is not supported by the document, omit it. Format the result as separate sections. Every detail line must start with exactly one dash and a space. Never leave a detail line bare. For example:
+Put the complete Technology Solution Summary into projectScope, not projectSummary. Use only wording copied or minimally cleaned from the supplied document. Do not summarize, interpret, infer, generalize, complete, or paraphrase missing details. Do not add assumptions, recommendations, plausible details, or general industry knowledge. If a scope detail is not explicitly readable in the document, leave that bullet blank. Never invent a detail to fill a category. If a category is present but its details are unclear, return the heading with blank bullet lines. Format the result as separate sections. Every detail line must start with exactly one dash and a space. Never leave a detail line bare. For example:
 Network:
 - detail
 - detail
@@ -1148,7 +1148,7 @@ Internet:
 - detail
 - detail
 
-Use the actual headings from the document, including Network, Internet, Information Security, BC/DR, Tools & Applications, Voice Solution, Deskside, and Others when present. Do not include HTML tags.
+Use the actual headings from the document, including Network, Internet, Information Security, BC/DR, Tools & Applications, Voice Solution, Deskside, and Others when present. Preserve the document's wording as closely as possible. Do not include HTML tags.
 
 For deliverables, return exactly this plain-text template and do not add, remove, or fill any lines. Leave the two hyphen lines under each heading blank so the user can fill them in later:
 Network:
@@ -1328,11 +1328,7 @@ function sanitizeProjectScope(value, source) {
 
         const normalizedContent = normalizeForSourceMatch(content);
         if (normalizedContent.length < 4) return false;
-        if (sourceText.includes(normalizedContent)) return true;
-
-        const tokens = normalizedContent.split(" ").filter(token => token.length > 2);
-        const matchingTokens = tokens.filter(token => sourceText.includes(token));
-        return tokens.length >= 4 && matchingTokens.length / tokens.length >= 0.75;
+        return sourceText.includes(normalizedContent);
     }).join("\n");
 
 }
