@@ -1166,7 +1166,7 @@ Internet:
 - detail
 - detail
 
-Use only these standard scope headings: Network, Internet, Information Security, BC/DR, Tools & Applications, Voice Solution, Deskside, and Others. Preserve the document's wording as closely as possible. A category begins at its heading and ends immediately before the next heading. Do not place a heading such as Network: inside BC/DR or another category. Do not move bullets between categories, merge categories, create new categories, or treat an unrecognized heading as a bullet. If a standard category is visible but its details are unreadable, keep its bullets blank. Do not include HTML tags.
+Use only these standard scope headings: Network, Internet, Information Security, BC/DR, Tools & Applications, Voice Solution, Deskside, and Others. Preserve the document's wording exactly, including company names, product names, abbreviations, and possessives. Read names from the PPTX text or image; never autocorrect, expand, or substitute a similar-looking word. A category begins at its heading and ends immediately before the next heading. Do not place a heading such as Network: inside BC/DR or another category. Do not move bullets between categories, merge categories, create new categories, or treat an unrecognized heading as a bullet. If a standard category is visible but its details are unreadable, keep its bullets blank. Do not include HTML tags.
 
 For deliverables, return exactly this plain-text template and do not add, remove, or fill any lines. Leave the two hyphen lines under each heading blank so the user can fill them in later:
 Network:
@@ -1312,7 +1312,8 @@ function formatProjectScope(value) {
         "Others"
     ]);
     const correctedValue = cleanExtractedText(value)
-        .replace(/\bConcentration(?=\s+information\s+security\s+policies\b)/gi, "Concentrix");
+        .replace(/\bConcentration's existing\b/gi, "Concentrix existing")
+        .replace(/\bConcentration information security policies\b/gi, "Concentrix information security policies");
     const lines = correctedValue
         .split(/\r?\n/)
         .map(line => line.trim())
@@ -1949,7 +1950,8 @@ function standardizeProjectSummary(value) {
 function extractScopeSections(source, headings) {
 
     const cleanedSource = cleanExtractedText(String(source || ""));
-    const headingPattern = headings
+    const headingPattern = [...headings]
+        .sort((left, right) => right.length - left.length)
         .map(heading => heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
         .join("|");
     const linePattern = new RegExp(`^(?:[-*•]\\s*)?(${headingPattern})\\s*:?\\s*(.*)$`, "i");

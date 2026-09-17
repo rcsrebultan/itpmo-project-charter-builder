@@ -52,6 +52,8 @@
 - Prevented linearized multi-column PPTX text from overriding image-grounded category assignments.
 - Kept deterministic text fallback parsing for documents without available page or slide images.
 - Corrected the observed `Concentration` OCR variant to `Concentrix` when used in the Information Security company name.
+- Matched longer scope headings before shorter prefixes so `Network Security` cannot become a Network bullet named `Security`.
+- Limited company-name normalization to exact observed phrases and preserved other source wording unchanged.
 - Instructed Nano to keep only standard categories and leave unreadable or unsupported bullets blank.
 - Preserved scope details for image-only or text-unreadable uploads.
 - Tightened scope extraction instructions to require explicit, readable source evidence.
