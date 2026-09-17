@@ -1166,7 +1166,7 @@ Internet:
 - detail
 - detail
 
-Use the actual headings from the document, including Network, Internet, Information Security, BC/DR, Tools & Applications, Voice Solution, Deskside, and Others when present. Preserve the document's wording as closely as possible. Do not include HTML tags.
+Use only these standard scope headings: Network, Internet, Information Security, BC/DR, Tools & Applications, Voice Solution, Deskside, and Others. Preserve the document's wording as closely as possible. A category begins at its heading and ends immediately before the next heading. Do not place a heading such as Network: inside BC/DR or another category. Do not move bullets between categories, merge categories, create new categories, or treat an unrecognized heading as a bullet. If a standard category is visible but its details are unreadable, keep its bullets blank. Do not include HTML tags.
 
 For deliverables, return exactly this plain-text template and do not add, remove, or fill any lines. Leave the two hyphen lines under each heading blank so the user can fill them in later:
 Network:
@@ -1970,7 +1970,7 @@ function extractScopeSections(source, headings) {
             line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim()
         ) === normalizedHeadings[headingIndex]);
         const nextPositions = normalizedHeadings
-            .map((normalized, index) => index > headingIndex
+            .map((normalized, index) => index !== headingIndex
                 ? lines.findIndex((line, lineIndex) => lineIndex > Math.max(headingPosition, -1)
                     && normalizeForSourceMatch(line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim()) === normalized)
                 : -1)
