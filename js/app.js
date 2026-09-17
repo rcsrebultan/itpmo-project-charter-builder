@@ -1157,7 +1157,7 @@ HOOP:
 
 For workType, inspect the source page or section containing General Solution Information, IT Transition Dates, or the highlighted Work Type entry. Extract the exact documented value, such as B&M, WAH, B&M only, WAH only, or both. Do not infer a work type when it is not stated; return an empty string instead.
 
-Put the complete Technology Solution Summary into projectScope, not projectSummary. Use only wording copied or minimally cleaned from the supplied document. Do not summarize, interpret, infer, generalize, complete, or paraphrase missing details. Do not add assumptions, recommendations, plausible details, or general industry knowledge. If a scope detail is not explicitly readable in the document, leave that bullet blank. Never invent a detail to fill a category. If a category is present but its details are unclear, return the heading with blank bullet lines. Format the result as separate sections. Every detail line must start with exactly one dash and a space. Never leave a detail line bare. For example:
+Put the complete Technology Solution Summary into projectScope, not projectSummary. Copy scope wording exactly as it appears in the supplied document. Do not correct spelling, grammar, punctuation, capitalization, company names, product names, abbreviations, possessives, or wording. Do not summarize, interpret, infer, generalize, complete, normalize, or paraphrase anything. Do not add assumptions, recommendations, plausible details, or general industry knowledge. If a scope detail is not explicitly readable in the document, omit it rather than guessing. Format the result as separate sections. Every detail line must start with exactly one dash and a space. Never leave a detail line bare. For example:
 Network:
 - detail
 - detail
@@ -1166,7 +1166,7 @@ Internet:
 - detail
 - detail
 
-Use only these standard scope headings: Network, Internet, Information Security, BC/DR, Tools & Applications, Voice Solution, Deskside, and Others. Preserve the document's wording exactly, including company names, product names, abbreviations, and possessives. Read names from the PPTX text or image; never autocorrect, expand, or substitute a similar-looking word. A category begins at its heading and ends immediately before the next heading. Do not place a heading such as Network: inside BC/DR or another category. Do not move bullets between categories, merge categories, create new categories, or treat an unrecognized heading as a bullet. If a standard category is visible but its details are unreadable, keep its bullets blank. Do not include HTML tags.
+Use these scope headings only when they appear in the document: Network, Internet, Information Security, BC/DR, Tools & Applications, Voice Solution, Deskside, and Others. A category begins at its heading and ends immediately before the next heading. Do not place a heading such as Network: inside BC/DR or another category. Do not move bullets between categories, merge categories, create new categories, or treat an unrecognized heading as a bullet. If a heading is visible but its details are unreadable, include the heading with no invented details. Do not include HTML tags.
 
 For deliverables, return exactly this plain-text template and do not add, remove, or fill any lines. Leave the two hyphen lines under each heading blank so the user can fill them in later:
 Network:
@@ -1270,7 +1270,7 @@ function applyExtractedData(data) {
         const field = document.querySelector(`[data-field="${name}"]`);
         if (field && !field.value && typeof value === "string") {
             const cleanedValue = name === "projectScope"
-                ? standardizeProjectScope(value)
+                ? String(value).trim()
                 : name === "projectName"
                     ? cleanProjectName(value)
                     : cleanExtractedText(value);
@@ -1309,10 +1309,7 @@ function formatProjectScope(value) {
         "Deskside",
         "Others"
     ]);
-    const correctedValue = cleanExtractedText(value)
-        .replace(/\bConcentration's existing\b/gi, "Concentrix existing")
-        .replace(/\bConcentration information security policies\b/gi, "Concentrix information security policies");
-    const lines = correctedValue
+    const lines = cleanExtractedText(value)
         .split(/\r?\n/)
         .map(line => line.trim())
         .filter(Boolean);
@@ -1339,8 +1336,6 @@ function sanitizeProjectScope(value, source, useTextFallback = true) {
         "Deskside",
         "Others"
     ];
-    if (!useTextFallback) return formatProjectScope(value);
-
     const sourceScope = extractScopeSections(source, scopeHeadings)
         .filter(section => section.details.length)
         .map(section => [`${section.heading}:`, ...section.details].join("\n"))
