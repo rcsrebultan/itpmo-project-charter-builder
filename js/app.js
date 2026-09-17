@@ -1304,10 +1304,7 @@ function formatProjectScope(value) {
 function sanitizeProjectScope(value, source) {
 
     const sourceText = normalizeForSourceMatch(source);
-    const formattedScope = formatProjectScope(value);
-    if (!sourceText) return formattedScope;
-
-    const headings = new Set([
+    const scopeHeadings = [
         "Network",
         "Internet",
         "Information Security",
@@ -1316,7 +1313,12 @@ function sanitizeProjectScope(value, source) {
         "Voice Solution",
         "Deskside",
         "Others"
-    ]);
+    ];
+    const sourceScope = extractScopeSections(source, scopeHeadings);
+    const formattedScope = formatProjectScope([value, sourceScope].filter(Boolean).join("\n"));
+    if (!sourceText) return formattedScope;
+
+    const headings = new Set(scopeHeadings);
     const lines = formattedScope.split(/\r?\n/);
 
     return lines.filter(line => {
@@ -1889,5 +1891,40 @@ function standardizeCategorizedText(value, headings) {
 function standardizeProjectSummary(value) {
 
     return formatProjectSummary(String(value || ""));
+
+}
+
+function extractScopeSections(source, headings) {
+
+    const lines = cleanExtractedText(String(source || ""))
+        .split(/\r?\n/)
+        .map(line => line.trim());
+    const normalizedHeadings = headings.map(heading => normalizeForSourceMatch(heading));
+    const sections = [];
+
+    headings.forEach((heading, headingIndex) => {
+        const headingPosition = lines.findIndex(line => normalizeForSourceMatch(
+            line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim()
+        ) === normalizedHeadings[headingIndex]);
+        if (headingPosition < 0) return;
+
+        const nextPositions = normalizedHeadings
+            .map((normalized, index) => index > headingIndex
+                ? lines.findIndex((line, lineIndex) => lineIndex > headingPosition
+                    && normalizeForSourceMatch(line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim()) === normalized)
+                : -1)
+            .filter(position => position >= 0);
+        const endPosition = nextPositions.length ? Math.min(...nextPositions) : lines.length;
+        const details = lines.slice(headingPosition + 1, endPosition)
+            .filter(line => line && !normalizedHeadings.includes(normalizeForSourceMatch(
+                line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim()
+            )))
+            .map(line => line.replace(/^(?:[-*]|\u2022)\s*/, "").trim())
+            .filter(line => line && line !== "-");
+
+        sections.push([`${heading}:`, ...details].join("\n"));
+    });
+
+    return sections.join("\n");
 
 }
