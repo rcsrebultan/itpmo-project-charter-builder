@@ -1337,7 +1337,10 @@ function sanitizeProjectScope(value, source) {
         "Deskside",
         "Others"
     ];
-    const sourceScope = extractScopeSections(source, scopeHeadings);
+    const sourceScope = extractScopeSections(source, scopeHeadings)
+        .filter(section => section.details.length)
+        .map(section => [`${section.heading}:`, ...section.details].join("\n"))
+        .join("\n");
     const formattedScope = formatProjectScope([value, sourceScope].filter(Boolean).join("\n"));
     if (!sourceText) return formattedScope;
 
@@ -1919,29 +1922,11 @@ function standardizeDeliverables(value) {
 
 function standardizeCategorizedText(value, headings) {
 
-    const sourceLines = cleanExtractedText(String(value || ""))
-        .split(/\r?\n/)
-        .map(line => line.trim());
-    const normalizedHeadings = headings.map(heading => normalizeForSourceMatch(heading));
+    const sections = extractScopeSections(value, headings);
+    const sectionMap = new Map(sections.map(section => [section.heading, section.details]));
 
-    return headings.map((heading, headingIndex) => {
-        const headingPosition = sourceLines.findIndex(line => {
-            const content = line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim();
-            return normalizeForSourceMatch(content) === normalizedHeadings[headingIndex];
-        });
-        const nextHeadingPositions = normalizedHeadings
-            .map((normalized, index) => index > headingIndex
-                ? sourceLines.findIndex((line, lineIndex) => lineIndex > headingPosition
-                    && normalizeForSourceMatch(line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim()) === normalized)
-                : -1)
-            .filter(position => position >= 0);
-        const endPosition = nextHeadingPositions.length ? Math.min(...nextHeadingPositions) : sourceLines.length;
-        const details = headingPosition >= 0
-            ? sourceLines.slice(headingPosition + 1, endPosition)
-                .filter(line => line && !/^[-*]\s*$/.test(line) && line.replace(/^[-*]\s*/, "").trim())
-                .map(line => line.replace(/^(?:[-*]|\u2022)\s*/, "").trim())
-                .slice(0, 3)
-            : [];
+    return headings.map(heading => {
+        const details = (sectionMap.get(heading) || []).slice(0, 3);
         const detailLines = details.map(detail => `- ${detail}`);
         while (detailLines.length < 2) detailLines.push("-");
 
@@ -1959,51 +1944,45 @@ function standardizeProjectSummary(value) {
 function extractScopeSections(source, headings) {
 
     const cleanedSource = cleanExtractedText(String(source || ""));
-    const lines = cleanedSource
-        .split(/\r?\n/)
-        .map(line => line.trim());
-    const normalizedHeadings = headings.map(heading => normalizeForSourceMatch(heading));
-    const sections = [];
+    const headingPattern = headings
+        .map(heading => heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join("|");
+    const linePattern = new RegExp(`^(?:[-*•]\\s*)?(${headingPattern})\\s*:?\\s*(.*)$`, "i");
+    const lines = cleanedSource.split(/\r?\n/).map(line => line.trim());
+    const foundSections = [];
+    let current = null;
 
-    headings.forEach((heading, headingIndex) => {
-        const headingPosition = lines.findIndex(line => normalizeForSourceMatch(
-            line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim()
-        ) === normalizedHeadings[headingIndex]);
-        const nextPositions = normalizedHeadings
-            .map((normalized, index) => index !== headingIndex
-                ? lines.findIndex((line, lineIndex) => lineIndex > Math.max(headingPosition, -1)
-                    && normalizeForSourceMatch(line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim()) === normalized)
-                : -1)
-            .filter(position => position >= 0);
-        const endPosition = nextPositions.length ? Math.min(...nextPositions) : lines.length;
-        let details = headingPosition >= 0
-            ? lines.slice(headingPosition + 1, endPosition)
-            .filter(line => line && !normalizedHeadings.includes(normalizeForSourceMatch(
-                line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim()
-            )))
-            .map(line => line.replace(/^(?:[-*]|\u2022)\s*/, "").trim())
-            .filter(line => line && line !== "-")
-            : [];
+    const flush = () => {
+        if (!current) return;
+        current.details = current.details
+            .map(line => line.replace(/^(?:[-*•]|\u2022)\s*/, "").trim())
+            .filter(line => line && line !== "-");
+        foundSections.push(current);
+    };
 
-        if (!details.length) {
-            const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            const otherHeadings = headings
-                .filter(candidate => candidate !== heading)
-                .map(candidate => candidate.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-                .join("|");
-            const sectionMatch = cleanedSource.match(new RegExp(
-                `${escapedHeading}\\s*:\\s*([\\s\\S]*?)(?=\\n?\\s*(?:${otherHeadings})\\s*:|$)`,
-                "i"
-            ));
-            details = (sectionMatch?.[1] || "")
-                .split(/\r?\n|\s+-\s+/)
-                .map(line => line.replace(/^(?:[-*]|\u2022)\s*/, "").trim())
-                .filter(line => line && line !== "-");
+    lines.forEach(line => {
+        const match = line.match(linePattern);
+        if (match) {
+            flush();
+            current = {
+                heading: headings.find(heading => heading.toLowerCase() === match[1].toLowerCase()),
+                details: []
+            };
+            if (match[2].trim()) current.details.push(match[2].trim());
+            return;
         }
-
-        sections.push([`${heading}:`, ...details].join("\n"));
+        if (current && line) current.details.push(line);
     });
+    flush();
 
-    return sections.join("\n");
+    const merged = new Map();
+    foundSections.forEach(section => {
+        if (!merged.has(section.heading)) merged.set(section.heading, []);
+        merged.get(section.heading).push(...section.details);
+    });
+    return headings.map(heading => ({
+        heading,
+        details: [...new Set(merged.get(heading) || [])]
+    }));
 
 }

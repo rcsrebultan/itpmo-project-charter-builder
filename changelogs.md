@@ -47,6 +47,8 @@
 - Added fallback extraction of Project Scope categories directly from extracted PDF/PPTX text when Nano omits visible sections.
 - Preserved Nano's image-grounded scope wording when it is backed by an exact evidence quote.
 - Added heading-bound scope extraction so bullets cannot leak into adjacent categories.
+- Made scope parsing independent of the standard heading order in the source document.
+- Preserved each category's source order and stopped sections at the next recognized heading.
 - Instructed Nano to keep only standard categories and leave unreadable or unsupported bullets blank.
 - Preserved scope details for image-only or text-unreadable uploads.
 - Tightened scope extraction instructions to require explicit, readable source evidence.
