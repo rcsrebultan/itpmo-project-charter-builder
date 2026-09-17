@@ -1112,6 +1112,7 @@ async function populateFromGemini(documentContent) {
             projectName: { type: "string" },
             projectSummary: { type: "string" },
             projectScope: { type: "string" },
+            deliverables: { type: "string" },
             workType: { type: "string" },
             solutionArchitect: { type: "string" },
             evidence: {
@@ -1120,24 +1121,25 @@ async function populateFromGemini(documentContent) {
                     projectName: { type: "string" },
                     projectSummary: { type: "string" },
                     projectScope: { type: "string" },
+                    deliverables: { type: "string" },
                     workType: { type: "string" },
                     solutionArchitect: { type: "string" }
                 },
                 required: [
-                    "projectName", "projectSummary", "projectScope",
+                    "projectName", "projectSummary", "projectScope", "deliverables",
                     "workType", "solutionArchitect"
                 ],
                 additionalProperties: false
             }
         },
         required: [
-            "projectName", "projectSummary", "projectScope",
+            "projectName", "projectSummary", "projectScope", "deliverables",
             "workType", "solutionArchitect", "evidence"
         ],
         additionalProperties: false
     };
 
-    const promptText = `Extract only facts from the supplied document. Do not invent, infer, guess, or hallucinate any value. Return only valid JSON with these keys: projectName, projectSummary, projectScope, workType, solutionArchitect, and evidence.
+    const promptText = `Extract only facts from the supplied document. Do not invent, infer, guess, or hallucinate any value. Return only valid JSON with these keys: projectName, projectSummary, projectScope, deliverables, workType, solutionArchitect, and evidence.
 
 If a value is not explicitly present in the document, return an empty string for that field. Never return explanations, disclaimers, search instructions, or phrases such as "not explicitly mentioned", "not found", "unknown", "not available", or "consulting from". Missing data must remain blank.
 
@@ -1166,7 +1168,28 @@ Internet:
 
 Use only these standard scope headings: Network, Internet, Information Security, BC/DR, Tools & Applications, Voice Solution, Deskside, and Others. Preserve the document's wording exactly, including company names, product names, abbreviations, and possessives. Read names from the PPTX text or image; never autocorrect, expand, or substitute a similar-looking word. A category begins at its heading and ends immediately before the next heading. Do not place a heading such as Network: inside BC/DR or another category. Do not move bullets between categories, merge categories, create new categories, or treat an unrecognized heading as a bullet. If a standard category is visible but its details are unreadable, keep its bullets blank. Do not include HTML tags.
 
-Do not extract, generate, or populate Deliverables. The application supplies that section from a fixed editable template. For the project summary, search every slide/page, not only headings that match the field names. Apply these strict rules: Location must be a real place/site name with at least two letters, never a sentence or explanation. Seats must be a number only. HC must be a number only; for a line such as "101 Seats - 80: Agents and 21 Hierarchy", return Seats as 101 and HC as 80. Training start date and Nesting/Go-live must each be a date only. Treat Training Date and Training start date as the same field. Treat Go Live, Go-Live, and Nesting/Go-live as the same field. HOOP must contain business operating hours only, such as weekday/weekend hours or a Monday-Friday time range. If a value does not meet its rule, return an empty string rather than an explanation. For HC, use explicit non-peak and peak staffing values when present.
+For deliverables, return exactly this plain-text template and do not add, remove, or fill any lines. Leave the two hyphen lines under each heading blank so the user can fill them in later:
+Network:
+-
+-
+
+Network Security:
+-
+-
+
+Server:
+-
+-
+
+IT Ops:
+-
+-
+
+Voice and Telephony:
+-
+-
+
+For the project summary, search every slide/page, not only headings that match the field names. Apply these strict rules: Location must be a real place/site name with at least two letters, never a sentence or explanation. Seats must be a number only. HC must be a number only; for a line such as "101 Seats - 80: Agents and 21 Hierarchy", return Seats as 101 and HC as 80. Training start date and Nesting/Go-live must each be a date only. Treat Training Date and Training start date as the same field. Treat Go Live, Go-Live, and Nesting/Go-live as the same field. HOOP must contain business operating hours only, such as weekday/weekend hours or a Monday-Friday time range. If a value does not meet its rule, return an empty string rather than an explanation. For HC, use explicit non-peak and peak staffing values when present.
 
 For solutionArchitect, use the explicit ITSA or IT Solution Architect value when present. If it is not explicitly labeled, inspect the Document History table: the person listed under the Updated By column is the assigned ITSA for this charter. Return that person's full name. Return plain text only inside all string values.
 
@@ -1247,7 +1270,7 @@ function applyExtractedData(data) {
         const field = document.querySelector(`[data-field="${name}"]`);
         if (field && !field.value && typeof value === "string") {
             const cleanedValue = name === "deliverables"
-                ? cleanDeliverables()
+                ? standardizeDeliverables(value)
                 : name === "projectScope"
                     ? standardizeProjectScope(value)
                 : name === "projectName"
@@ -1622,27 +1645,27 @@ function mergeProjectSummary(aiValue, explicitValue) {
 function cleanDeliverables() {
 
     return [
-        "IT Project Kick-off",
-        "",
-        "CRQ Submission",
-        "",
         "Network:",
         "-",
         "-",
-        "-",
+        "",
         "Network Security:",
         "-",
         "-",
+        "",
         "Server:",
         "-",
         "-",
-        "-",
-        "-",
+        "",
         "IT Ops:",
         "-",
         "-",
+        "",
+        "Voice and Telephony:",
         "-",
-        "Training and Delivery:",
+        "-",
+        "",
+        "Others:",
         "-",
         "-"
     ].join("\n");
@@ -1699,6 +1722,7 @@ function recoverAIFields(value) {
         "projectName",
         "projectSummary",
         "projectScope",
+        "deliverables",
         "workType",
         "solutionArchitect"
     ];
@@ -1884,6 +1908,19 @@ function standardizeProjectScope(value) {
         "Tools & Applications",
         "Voice Solution",
         "Deskside",
+        "Others"
+    ]);
+
+}
+
+function standardizeDeliverables(value) {
+
+    return standardizeCategorizedText(value, [
+        "Network",
+        "Network Security",
+        "Server",
+        "IT Ops",
+        "Voice and Telephony",
         "Others"
     ]);
 
