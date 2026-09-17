@@ -1311,7 +1311,9 @@ function formatProjectScope(value) {
         "Deskside",
         "Others"
     ]);
-    const lines = cleanExtractedText(value)
+    const correctedValue = cleanExtractedText(value)
+        .replace(/\bConcentration(?=\s+information\s+security\s+policies\b)/gi, "Concentrix");
+    const lines = correctedValue
         .split(/\r?\n/)
         .map(line => line.trim())
         .filter(Boolean);

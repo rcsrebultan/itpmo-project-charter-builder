@@ -51,6 +51,7 @@
 - Preserved each category's source order and stopped sections at the next recognized heading.
 - Prevented linearized multi-column PPTX text from overriding image-grounded category assignments.
 - Kept deterministic text fallback parsing for documents without available page or slide images.
+- Corrected the observed `Concentration` OCR variant to `Concentrix` when used in the Information Security company name.
 - Instructed Nano to keep only standard categories and leave unreadable or unsupported bullets blank.
 - Preserved scope details for image-only or text-unreadable uploads.
 - Tightened scope extraction instructions to require explicit, readable source evidence.
