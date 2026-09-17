@@ -1270,7 +1270,7 @@ function applyExtractedData(data) {
         const field = document.querySelector(`[data-field="${name}"]`);
         if (field && !field.value && typeof value === "string") {
             const cleanedValue = name === "projectScope"
-                ? String(value).trim()
+                ? standardizeProjectScope(value)
                 : name === "projectName"
                     ? cleanProjectName(value)
                     : cleanExtractedText(value);
@@ -1309,7 +1309,8 @@ function formatProjectScope(value) {
         "Deskside",
         "Others"
     ]);
-    const lines = cleanExtractedText(value)
+    const correctedValue = cleanExtractedText(value);
+    const lines = correctedValue
         .split(/\r?\n/)
         .map(line => line.trim())
         .filter(Boolean);
@@ -1336,6 +1337,8 @@ function sanitizeProjectScope(value, source, useTextFallback = true) {
         "Deskside",
         "Others"
     ];
+    if (!useTextFallback) return formatProjectScope(value);
+
     const sourceScope = extractScopeSections(source, scopeHeadings)
         .filter(section => section.details.length)
         .map(section => [`${section.heading}:`, ...section.details].join("\n"))
