@@ -50,6 +50,14 @@
 - Removed fuzzy scope matching that could retain unsupported or hallucinated wording.
 - Kept unsupported details blank instead of inventing or paraphrasing content.
 
+#### AI Accuracy Safeguards
+
+- Instructed Gemini Nano to copy readable source wording rather than summarize or expand it.
+- Instructed Gemini Nano not to infer missing details, expand abbreviations, combine bullets, or fill empty categories.
+- Added source-text fallback extraction for scope categories that Nano misses.
+- Require future extraction improvements to retain source text and slide references for each captured bullet.
+- Recommended validating every AI-generated bullet against the uploaded document before displaying it.
+
 ### Deployment
 
 - Added the timeline work to the `timeline` branch for review.
