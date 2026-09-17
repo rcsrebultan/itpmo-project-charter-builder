@@ -1182,10 +1182,8 @@ ${documentContent.text}`;
     let response;
 
     try {
-        if (documentContent.text.trim()) {
-            response = await session.prompt(promptText, promptOptions);
-        } else {
-            const promptImages = documentContent.images.slice(0, 1);
+        const promptImages = documentContent.images.slice(0, 4);
+        if (promptImages.length) {
             response = await session.prompt([
                 {
                     role: "user",
@@ -1195,6 +1193,8 @@ ${documentContent.text}`;
                     ]
                 }
             ], promptOptions);
+        } else {
+            response = await session.prompt(promptText, promptOptions);
         }
     } finally {
         session.destroy();
@@ -1302,6 +1302,9 @@ function formatProjectScope(value) {
 function sanitizeProjectScope(value, source) {
 
     const sourceText = normalizeForSourceMatch(source);
+    const formattedScope = formatProjectScope(value);
+    if (!sourceText) return formattedScope;
+
     const headings = new Set([
         "Network",
         "Internet",
@@ -1312,7 +1315,7 @@ function sanitizeProjectScope(value, source) {
         "Deskside",
         "Others"
     ]);
-    const lines = formatProjectScope(value).split(/\r?\n/);
+    const lines = formattedScope.split(/\r?\n/);
 
     return lines.filter(line => {
         const content = line.replace(/^[-]\s*/, "").replace(/:$/, "").trim();
