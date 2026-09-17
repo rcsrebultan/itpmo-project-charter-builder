@@ -1239,7 +1239,8 @@ ${documentContent.text}`;
     const scopeEvidence = data.evidence?.projectScope || "";
     data.projectScope = sanitizeProjectScope(
         data.projectScope,
-        [documentContent.text, scopeEvidence].filter(Boolean).join("\n")
+        [documentContent.text, scopeEvidence].filter(Boolean).join("\n"),
+        documentContent.images.length === 0
     );
 
     const populatedCount = Object.entries(data)
@@ -1324,7 +1325,7 @@ function formatProjectScope(value) {
 
 }
 
-function sanitizeProjectScope(value, source) {
+function sanitizeProjectScope(value, source, useTextFallback = true) {
 
     const sourceText = normalizeForSourceMatch(source);
     const scopeHeadings = [
@@ -1337,6 +1338,8 @@ function sanitizeProjectScope(value, source) {
         "Deskside",
         "Others"
     ];
+    if (!useTextFallback) return formatProjectScope(value);
+
     const sourceScope = extractScopeSections(source, scopeHeadings)
         .filter(section => section.details.length)
         .map(section => [`${section.heading}:`, ...section.details].join("\n"))

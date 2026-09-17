@@ -49,6 +49,8 @@
 - Added heading-bound scope extraction so bullets cannot leak into adjacent categories.
 - Made scope parsing independent of the standard heading order in the source document.
 - Preserved each category's source order and stopped sections at the next recognized heading.
+- Prevented linearized multi-column PPTX text from overriding image-grounded category assignments.
+- Kept deterministic text fallback parsing for documents without available page or slide images.
 - Instructed Nano to keep only standard categories and leave unreadable or unsupported bullets blank.
 - Preserved scope details for image-only or text-unreadable uploads.
 - Tightened scope extraction instructions to require explicit, readable source evidence.
