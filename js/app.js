@@ -1125,17 +1125,21 @@ async function populateFromGemini(documentContent) {
                     workType: { type: "string" },
                     solutionArchitect: { type: "string" }
                 },
+                required: [
+                    "projectName", "projectSummary", "projectScope", "deliverables",
+                    "workType", "solutionArchitect"
+                ],
                 additionalProperties: false
             }
         },
         required: [
             "projectName", "projectSummary", "projectScope", "deliverables",
-            "workType", "solutionArchitect"
+            "workType", "solutionArchitect", "evidence"
         ],
         additionalProperties: false
     };
 
-    const promptText = `Extract only facts from the supplied document. Do not invent, infer, guess, or hallucinate any value. Return only valid JSON with these keys: projectName, projectSummary, projectScope, deliverables, workType, solutionArchitect, and optional evidence.
+    const promptText = `Extract only facts from the supplied document. Do not invent, infer, guess, or hallucinate any value. Return only valid JSON with these keys: projectName, projectSummary, projectScope, deliverables, workType, solutionArchitect, and evidence.
 
 If a value is not explicitly present in the document, return an empty string for that field. Never return explanations, disclaimers, search instructions, or phrases such as "not explicitly mentioned", "not found", "unknown", "not available", or "consulting from". Missing data must remain blank.
 
@@ -1232,7 +1236,11 @@ ${documentContent.text}`;
     validateAIData(data, documentContent);
     data.workType = data.workType || extractWorkType(documentContent.text);
     data.solutionArchitect = extractITSA(documentContent.text) || data.solutionArchitect;
-    data.projectScope = sanitizeProjectScope(data.projectScope, documentContent.text);
+    const scopeEvidence = data.evidence?.projectScope || "";
+    data.projectScope = sanitizeProjectScope(
+        data.projectScope,
+        [documentContent.text, scopeEvidence].filter(Boolean).join("\n")
+    );
 
     const populatedCount = Object.entries(data)
         .filter(([name, value]) => !["teamMembers", "risks"].includes(name)
@@ -1330,7 +1338,7 @@ function sanitizeProjectScope(value, source) {
         "Others"
     ];
     const sourceScope = extractScopeSections(source, scopeHeadings);
-    const formattedScope = formatProjectScope([sourceScope, value].filter(Boolean).join("\n"));
+    const formattedScope = formatProjectScope([value, sourceScope].filter(Boolean).join("\n"));
     if (!sourceText) return formattedScope;
 
     const headings = new Set(scopeHeadings);
