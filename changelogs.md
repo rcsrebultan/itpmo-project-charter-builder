@@ -45,6 +45,7 @@
 
 - Enabled Gemini Nano to receive document images when uploaded files contain images, in addition to extracted text.
 - Added fallback extraction of Project Scope categories directly from extracted PDF/PPTX text when Nano omits visible sections.
+- Prioritized exact source-extracted scope wording over Nano paraphrases when both are available.
 - Preserved scope details for image-only or text-unreadable uploads.
 - Tightened scope extraction instructions to require explicit, readable source evidence.
 - Removed fuzzy scope matching that could retain unsupported or hallucinated wording.

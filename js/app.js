@@ -1330,7 +1330,7 @@ function sanitizeProjectScope(value, source) {
         "Others"
     ];
     const sourceScope = extractScopeSections(source, scopeHeadings);
-    const formattedScope = formatProjectScope([value, sourceScope].filter(Boolean).join("\n"));
+    const formattedScope = formatProjectScope([sourceScope, value].filter(Boolean).join("\n"));
     if (!sourceText) return formattedScope;
 
     const headings = new Set(scopeHeadings);
