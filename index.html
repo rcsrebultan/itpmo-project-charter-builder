@@ -268,6 +268,10 @@
 
             <h2>Milestone Dates</h2>
 
+            <p class="section-description">
+                Use one date for events and start/end dates for activities that span multiple weeks.
+            </p>
+
             <div class="timeline-grid">
 
                 <div class="field date-field">
@@ -290,46 +294,81 @@
 
                 <div class="field date-field">
                     <label>IT Setup</label>
-                    <div class="date-input">
-                        <input type="text" data-field="itSetup" placeholder="DD-MMM-YYYY" readonly>
-                        <button type="button" class="calendar-btn" aria-label="Choose IT Setup date"><i class="fa-solid fa-calendar-days"></i></button>
-                        <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                    <div class="date-range">
+                        <div class="date-input">
+                            <input type="text" data-field="itSetupStart" placeholder="Start date" readonly>
+                            <button type="button" class="calendar-btn" aria-label="Choose IT Setup start date"><i class="fa-solid fa-calendar-days"></i></button>
+                            <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                        </div>
+                        <div class="date-input">
+                            <input type="text" data-field="itSetupEnd" placeholder="End date" readonly>
+                            <button type="button" class="calendar-btn" aria-label="Choose IT Setup end date"><i class="fa-solid fa-calendar-days"></i></button>
+                            <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                        </div>
                     </div>
                 </div>
 
                 <div class="field date-field">
                     <label>UAT</label>
-                    <div class="date-input">
-                        <input type="text" data-field="uat" placeholder="DD-MMM-YYYY" readonly>
-                        <button type="button" class="calendar-btn" aria-label="Choose UAT date"><i class="fa-solid fa-calendar-days"></i></button>
-                        <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                    <div class="date-range">
+                        <div class="date-input">
+                            <input type="text" data-field="uatStart" placeholder="Start date" readonly>
+                            <button type="button" class="calendar-btn" aria-label="Choose UAT start date"><i class="fa-solid fa-calendar-days"></i></button>
+                            <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                        </div>
+                        <div class="date-input">
+                            <input type="text" data-field="uatEnd" placeholder="End date" readonly>
+                            <button type="button" class="calendar-btn" aria-label="Choose UAT end date"><i class="fa-solid fa-calendar-days"></i></button>
+                            <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                        </div>
                     </div>
                 </div>
 
                 <div class="field date-field">
                     <label>Train-the-Trainer</label>
-                    <div class="date-input">
-                        <input type="text" data-field="trainTheTrainer" placeholder="DD-MMM-YYYY" readonly>
-                        <button type="button" class="calendar-btn" aria-label="Choose Train-the-Trainer date"><i class="fa-solid fa-calendar-days"></i></button>
-                        <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                    <div class="date-range">
+                        <div class="date-input">
+                            <input type="text" data-field="trainTheTrainerStart" placeholder="Start date" readonly>
+                            <button type="button" class="calendar-btn" aria-label="Choose Train-the-Trainer start date"><i class="fa-solid fa-calendar-days"></i></button>
+                            <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                        </div>
+                        <div class="date-input">
+                            <input type="text" data-field="trainTheTrainerEnd" placeholder="End date" readonly>
+                            <button type="button" class="calendar-btn" aria-label="Choose Train-the-Trainer end date"><i class="fa-solid fa-calendar-days"></i></button>
+                            <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                        </div>
                     </div>
                 </div>
 
                 <div class="field date-field">
                     <label>CET</label>
-                    <div class="date-input">
-                        <input type="text" data-field="cet" placeholder="DD-MMM-YYYY" readonly>
-                        <button type="button" class="calendar-btn" aria-label="Choose CET date"><i class="fa-solid fa-calendar-days"></i></button>
-                        <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                    <div class="date-range">
+                        <div class="date-input">
+                            <input type="text" data-field="cetStart" placeholder="Start date" readonly>
+                            <button type="button" class="calendar-btn" aria-label="Choose CET start date"><i class="fa-solid fa-calendar-days"></i></button>
+                            <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                        </div>
+                        <div class="date-input">
+                            <input type="text" data-field="cetEnd" placeholder="End date" readonly>
+                            <button type="button" class="calendar-btn" aria-label="Choose CET end date"><i class="fa-solid fa-calendar-days"></i></button>
+                            <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                        </div>
                     </div>
                 </div>
 
                 <div class="field date-field">
                     <label>PST</label>
-                    <div class="date-input">
-                        <input type="text" data-field="pst" placeholder="DD-MMM-YYYY" readonly>
-                        <button type="button" class="calendar-btn" aria-label="Choose PST date"><i class="fa-solid fa-calendar-days"></i></button>
-                        <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                    <div class="date-range">
+                        <div class="date-input">
+                            <input type="text" data-field="pstStart" placeholder="Start date" readonly>
+                            <button type="button" class="calendar-btn" aria-label="Choose PST start date"><i class="fa-solid fa-calendar-days"></i></button>
+                            <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                        </div>
+                        <div class="date-input">
+                            <input type="text" data-field="pstEnd" placeholder="End date" readonly>
+                            <button type="button" class="calendar-btn" aria-label="Choose PST end date"><i class="fa-solid fa-calendar-days"></i></button>
+                            <input type="date" class="native-date-input" tabindex="-1" aria-hidden="true">
+                        </div>
                     </div>
                 </div>
 

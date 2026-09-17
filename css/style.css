@@ -529,6 +529,19 @@ textarea {
     gap: 8px;
 }
 
+.date-range {
+
+    display: grid;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 10px;
+}
+
+.date-range .date-input {
+    min-width: 0;
+}
+
 .date-input .calendar-btn {
 
     width: 48px;

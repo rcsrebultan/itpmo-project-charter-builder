@@ -491,6 +491,7 @@ async function generateDocx() {
         return;
     }
 
+    applyManualTemplates();
     const data = collectProjectData();
     const response = await fetch("assets/project-charter-template.docx");
     const zip = await JSZip.loadAsync(await response.arrayBuffer());
@@ -539,7 +540,65 @@ async function generateDocx() {
     };
 
     const cells = rowIndex => [...rows[rowIndex].getElementsByTagNameNS(namespace, "tc")];
-    const set = (rowIndex, cellIndex, value, alignment) => cellText(cells(rowIndex)[cellIndex], value, alignment);
+    const setRow = (row, cellIndex, value, alignment) => {
+        const rowCells = [...row.getElementsByTagNameNS(namespace, "tc")];
+        cellText(rowCells[cellIndex], value, alignment);
+    };
+    const set = (rowIndex, cellIndex, value, alignment) => setRow(rows[rowIndex], cellIndex, value, alignment);
+    const styleHeaderCell = cell => {
+        const properties = cell.getElementsByTagNameNS(namespace, "tcPr")[0];
+        const shading = properties.getElementsByTagNameNS(namespace, "shd")[0]
+            || xml.createElementNS(namespace, "w:shd");
+        shading.setAttributeNS(namespace, "w:fill", "0F4C5C");
+        if (!shading.parentNode) properties.appendChild(shading);
+
+        [...cell.getElementsByTagNameNS(namespace, "p")].forEach(paragraph => {
+            const paragraphProperties = paragraph.getElementsByTagNameNS(namespace, "pPr")[0]
+                || paragraph.insertBefore(xml.createElementNS(namespace, "w:pPr"), paragraph.firstChild);
+            const alignment = paragraphProperties.getElementsByTagNameNS(namespace, "jc")[0]
+                || xml.createElementNS(namespace, "w:jc");
+            alignment.setAttributeNS(namespace, "w:val", "center");
+            if (!alignment.parentNode) paragraphProperties.appendChild(alignment);
+            [...paragraph.getElementsByTagNameNS(namespace, "r")].forEach(run => {
+                const runProperties = run.getElementsByTagNameNS(namespace, "rPr")[0]
+                    || run.insertBefore(xml.createElementNS(namespace, "w:rPr"), run.firstChild);
+                if (!runProperties.getElementsByTagNameNS(namespace, "b").length) {
+                    runProperties.appendChild(xml.createElementNS(namespace, "w:b"));
+                }
+                const color = runProperties.getElementsByTagNameNS(namespace, "color")[0]
+                    || xml.createElementNS(namespace, "w:color");
+                color.setAttributeNS(namespace, "w:val", "FFFFFF");
+                if (!color.parentNode) runProperties.appendChild(color);
+            });
+        });
+    };
+    const mergeRowAcrossTable = rowIndex => {
+        const row = rows[rowIndex];
+        const rowCells = [...row.getElementsByTagNameNS(namespace, "tc")];
+        rowCells.slice(1).forEach(cell => row.removeChild(cell));
+        const properties = rowCells[0].getElementsByTagNameNS(namespace, "tcPr")[0];
+        [...properties.getElementsByTagNameNS(namespace, "gridSpan")].forEach(element => element.remove());
+        const gridSpan = xml.createElementNS(namespace, "w:gridSpan");
+        gridSpan.setAttributeNS(namespace, "w:val", "4");
+        properties.appendChild(gridSpan);
+        properties.getElementsByTagNameNS(namespace, "tcW")[0]
+            .setAttributeNS(namespace, "w:w", "10209");
+    };
+    const normalizeResourceRow = rowIndex => {
+        const row = rows[rowIndex];
+        const rowCells = [...row.getElementsByTagNameNS(namespace, "tc")];
+        rowCells.slice(2).forEach(cell => row.removeChild(cell));
+        rowCells.slice(0, 2).forEach(cell => {
+            const properties = cell.getElementsByTagNameNS(namespace, "tcPr")[0];
+            [...properties.getElementsByTagNameNS(namespace, "gridSpan")].forEach(element => element.remove());
+            const gridSpan = xml.createElementNS(namespace, "w:gridSpan");
+            gridSpan.setAttributeNS(namespace, "w:val", "2");
+            properties.appendChild(gridSpan);
+            const width = properties.getElementsByTagNameNS(namespace, "tcW")[0];
+            width.setAttributeNS(namespace, "w:w", "5104");
+            width.setAttributeNS(namespace, "w:type", "dxa");
+        });
+    };
     const projectName = String(data.projectName || "Untitled Project").trim();
     const edrNumber = String(data.edrNumber || "").trim();
     const charterName = `Project Charter - ${projectName}${edrNumber ? ` - EDR ${edrNumber}` : ""}`;
@@ -553,34 +612,220 @@ async function generateDocx() {
     set(4, 3, data.workType);
     set(6, 0, data.projectScope);
     set(6, 1, data.deliverables);
+    styleHeaderCell(cells(0)[0]);
+    styleHeaderCell(cells(5)[0]);
+    styleHeaderCell(cells(5)[1]);
 
     const teamMembers = data.teamMembers
         .filter(member => Object.values(member).some(Boolean));
 
-    const milestoneDates = [
-        data.solutionHandoverDate,
-        data.itKickoffCall,
-        data.itSetup,
-        data.uat,
-        data.trainTheTrainer,
-        data.cet,
-        data.pst,
-        data.goLive
-    ].map(formatTimelineDate);
+    mergeRowAcrossTable(14);
+    set(14, 0, "Team Members/Resources");
+    styleHeaderCell(cells(14)[0]);
+    for (let rowIndex = 22; rowIndex >= 16 + teamMembers.length; rowIndex--) {
+        rows[rowIndex].parentNode.removeChild(rows[rowIndex]);
+    }
+    for (let rowIndex = 15; rowIndex < 16 + teamMembers.length; rowIndex++) {
+        normalizeResourceRow(rowIndex);
+    }
+    set(15, 0, "Role");
+    set(15, 1, "Name");
 
-    for (let index = 0; index < 8; index++) {
+    for (let index = 0; index < teamMembers.length; index++) {
         const member = teamMembers[index] || {};
-        const rowIndex = 15 + index;
+        const rowIndex = 16 + index;
         set(rowIndex, 0, member.role, "left");
         set(rowIndex, 1, member.name);
-        set(rowIndex, 3, milestoneDates[index]);
     }
 
+    const timelineEntries = [
+        { label: "Solutions Handover", start: data.solutionHandoverDate, end: data.solutionHandoverDate },
+        { label: "IT Kick-off Call", start: data.itKickoffCall, end: data.itKickoffCall },
+        { label: "IT Setup", start: data.itSetupStart, end: data.itSetupEnd },
+        { label: "UAT", start: data.uatStart, end: data.uatEnd },
+        { label: "Train-the-Trainer", start: data.trainTheTrainerStart, end: data.trainTheTrainerEnd },
+        { label: "CET", start: data.cetStart, end: data.cetEnd },
+        { label: "PST", start: data.pstStart, end: data.pstEnd },
+        { label: "Go-Live", start: data.goLive, end: data.goLive }
+    ].map(entry => ({
+        ...entry,
+        start: formatTimelineDate(entry.start),
+        end: formatTimelineDate(entry.end)
+    }));
+
+    const createTextRun = (value, options = {}) => {
+        const run = xml.createElementNS(namespace, "w:r");
+        const properties = xml.createElementNS(namespace, "w:rPr");
+        const text = xml.createElementNS(namespace, "w:t");
+        text.setAttributeNS("http://www.w3.org/XML/1998/namespace", "xml:space", "preserve");
+        text.textContent = value;
+        if (options.bold) properties.appendChild(xml.createElementNS(namespace, "w:b"));
+        if (options.color) {
+            const color = xml.createElementNS(namespace, "w:color");
+            color.setAttributeNS(namespace, "w:val", options.color);
+            properties.appendChild(color);
+        }
+        if (options.size) {
+            const size = xml.createElementNS(namespace, "w:sz");
+            size.setAttributeNS(namespace, "w:val", options.size);
+            properties.appendChild(size);
+            const sizeCs = xml.createElementNS(namespace, "w:szCs");
+            sizeCs.setAttributeNS(namespace, "w:val", options.size);
+            properties.appendChild(sizeCs);
+        }
+        run.appendChild(properties);
+        run.appendChild(text);
+        return run;
+    };
+    const createTimelineCell = (value, options = {}) => {
+        const cell = xml.createElementNS(namespace, "w:tc");
+        const properties = xml.createElementNS(namespace, "w:tcPr");
+        const width = xml.createElementNS(namespace, "w:tcW");
+        const verticalAlignment = xml.createElementNS(namespace, "w:vAlign");
+        const paragraph = xml.createElementNS(namespace, "w:p");
+        width.setAttributeNS(namespace, "w:w", options.width || "5000");
+        width.setAttributeNS(namespace, "w:type", "dxa");
+        verticalAlignment.setAttributeNS(namespace, "w:val", "center");
+        properties.appendChild(width);
+        properties.appendChild(verticalAlignment);
+        if (options.fill) {
+            const shading = xml.createElementNS(namespace, "w:shd");
+            shading.setAttributeNS(namespace, "w:fill", options.fill);
+            properties.appendChild(shading);
+        }
+        if (options.alignment) {
+            const paragraphProperties = xml.createElementNS(namespace, "w:pPr");
+            const alignment = xml.createElementNS(namespace, "w:jc");
+            alignment.setAttributeNS(namespace, "w:val", options.alignment);
+            paragraphProperties.appendChild(alignment);
+            paragraph.appendChild(paragraphProperties);
+        }
+        paragraph.appendChild(createTextRun(value, options));
+        cell.appendChild(properties);
+        cell.appendChild(paragraph);
+        return cell;
+    };
+    const parseTimelineDate = value => {
+        const match = String(value || "").match(/^(\d{2})-([A-Za-z]{3})-(\d{4})$/);
+        if (!match) return null;
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const month = months.findIndex(item => item.toLowerCase() === match[2].toLowerCase());
+        const date = new Date(Date.UTC(Number(match[3]), month, Number(match[1])));
+        return Number.isNaN(date.getTime()) ? null : date;
+    };
+    const startOfWeek = date => {
+        const result = new Date(date);
+        const day = result.getUTCDay();
+        result.setUTCDate(result.getUTCDate() - (day === 0 ? 6 : day - 1));
+        return result;
+    };
+    const addDays = (date, days) => {
+        const result = new Date(date);
+        result.setUTCDate(result.getUTCDate() + days);
+        return result;
+    };
+    const datedMilestones = timelineEntries.flatMap(entry => [entry.start, entry.end])
+        .map(parseTimelineDate).filter(Boolean);
+    const hasTimelineData = datedMilestones.length > 0;
+    const firstWeek = hasTimelineData
+        ? startOfWeek(datedMilestones.reduce((earliest, item) => item < earliest ? item : earliest, datedMilestones[0]))
+        : startOfWeek(new Date());
+    const lastWeek = hasTimelineData
+        ? startOfWeek(datedMilestones.reduce((latest, item) => item > latest ? item : latest, datedMilestones[0]))
+        : firstWeek;
+    const weekCount = Math.floor((lastWeek - firstWeek) / (7 * 24 * 60 * 60 * 1000)) + 1;
+    const weeks = Array.from({ length: weekCount }, (_, index) => addDays(firstWeek, index * 7));
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const weekIndexFor = date => Math.floor((startOfWeek(date) - firstWeek) / (7 * 24 * 60 * 60 * 1000));
+    const timelineTable = xml.createElementNS(namespace, "w:tbl");
+    const tableProperties = xml.createElementNS(namespace, "w:tblPr");
+    const tableWidth = xml.createElementNS(namespace, "w:tblW");
+    tableWidth.setAttributeNS(namespace, "w:w", "5000");
+    tableWidth.setAttributeNS(namespace, "w:type", "pct");
+    const tableLayout = xml.createElementNS(namespace, "w:tblLayout");
+    tableLayout.setAttributeNS(namespace, "w:type", "autofit");
+    tableProperties.appendChild(tableWidth);
+    tableProperties.appendChild(tableLayout);
+    const borders = xml.createElementNS(namespace, "w:tblBorders");
+    ["top", "left", "bottom", "right", "insideH", "insideV"].forEach(edge => {
+        const border = xml.createElementNS(namespace, `w:${edge}`);
+        border.setAttributeNS(namespace, "w:val", "single");
+        border.setAttributeNS(namespace, "w:sz", "4");
+        border.setAttributeNS(namespace, "w:color", "D9E2F3");
+        borders.appendChild(border);
+    });
+    tableProperties.appendChild(borders);
+    timelineTable.appendChild(tableProperties);
+    const headerRow = xml.createElementNS(namespace, "w:tr");
+    headerRow.appendChild(createTimelineCell("Milestone", { width: "3000", fill: "0F4C5C", bold: true, color: "FFFFFF" }));
+    headerRow.appendChild(createTimelineCell("Date", { width: "1600", fill: "0F4C5C", bold: true, color: "FFFFFF", alignment: "center" }));
+    if (hasTimelineData) weeks.forEach((week, index) => headerRow.appendChild(createTimelineCell(
+        `WK${index + 1}\n${monthNames[week.getUTCMonth()]} ${week.getUTCDate()}`,
+        { width: "600", fill: "0F4C5C", bold: true, color: "FFFFFF", alignment: "center" }
+    )));
+    timelineTable.appendChild(headerRow);
+    timelineEntries.forEach(({ label, start, end }, index) => {
+        const row = xml.createElementNS(namespace, "w:tr");
+        const fill = index % 2 === 0 ? "F3F7FA" : "FFFFFF";
+        const parsedStart = parseTimelineDate(start);
+        const parsedEnd = parseTimelineDate(end || start);
+        const startWeek = parsedStart ? weekIndexFor(parsedStart) : -1;
+        const endWeek = parsedEnd ? weekIndexFor(parsedEnd) : startWeek;
+        const dateLabel = start && end && start !== end ? `${start} - ${end}` : start;
+        row.appendChild(createTimelineCell(label, { width: "3000", fill }));
+        row.appendChild(createTimelineCell(dateLabel || "", { width: "1600", fill, alignment: "center" }));
+        if (hasTimelineData) weeks.forEach((week, weekIndex) => {
+            const inRange = weekIndex >= startWeek && weekIndex <= endWeek && startWeek >= 0;
+            const singleDay = parsedStart && parsedEnd && parsedStart.getTime() === parsedEnd.getTime();
+            const marker = inRange && singleDay ? (label === "Go-Live" ? "★" : "●") : "";
+            row.appendChild(createTimelineCell(marker, {
+                width: "600",
+                fill: inRange && !singleDay ? "2A9D8F" : fill,
+                color: singleDay ? "159A9C" : "FFFFFF",
+                size: singleDay ? (label === "Go-Live" ? "40" : "34") : null,
+                alignment: "center"
+            }));
+        });
+        timelineTable.appendChild(row);
+    });
+    const body = xml.getElementsByTagNameNS(namespace, "body")[0];
+    const sectionProperties = body.getElementsByTagNameNS(namespace, "sectPr")[0];
+    const insertBeforeSection = node => body.insertBefore(node, sectionProperties || null);
+    const pageBreak = xml.createElementNS(namespace, "w:p");
+    const pageBreakRun = xml.createElementNS(namespace, "w:r");
+    const pageBreakElement = xml.createElementNS(namespace, "w:br");
+    pageBreakElement.setAttributeNS(namespace, "w:type", "page");
+    pageBreakRun.appendChild(pageBreakElement);
+    pageBreak.appendChild(pageBreakRun);
+    const timelineHeading = xml.createElementNS(namespace, "w:p");
+    const headingProperties = xml.createElementNS(namespace, "w:pPr");
+    const headingStyle = xml.createElementNS(namespace, "w:pStyle");
+    headingStyle.setAttributeNS(namespace, "w:val", "Heading1");
+    headingProperties.appendChild(headingStyle);
+    timelineHeading.appendChild(headingProperties);
+    timelineHeading.appendChild(createTextRun("Project Timeline", { bold: true }));
+    insertBeforeSection(pageBreak);
+    insertBeforeSection(timelineHeading);
+    insertBeforeSection(timelineTable);
+
     const risks = data.risks.filter(risk => risk.risk || risk.mitigation);
-    set(24, 0, risks.map(risk => risk.risk || "").join("\n"));
-    set(24, 1, risks.map(risk => risk.mitigation || "").join("\n"));
-    set(25, 0, "");
-    set(25, 1, "");
+    mergeRowAcrossTable(23);
+    set(23, 0, "Risks / Mitigation");
+    styleHeaderCell(cells(23)[0]);
+    set(24, 0, "Identified Risks");
+    set(24, 1, "Mitigation Plan");
+
+    const riskRows = [rows[25]];
+    while (riskRows.length < risks.length) {
+        const newRow = rows[25].cloneNode(true);
+        rows[25].parentNode.appendChild(newRow);
+        riskRows.push(newRow);
+    }
+    riskRows.forEach((row, index) => {
+        const risk = risks[index] || {};
+        setRow(row, 0, risk.risk || "");
+        setRow(row, 1, risk.mitigation || "");
+    });
 
     zip.file("word/document.xml", new XMLSerializer().serializeToString(xml));
     const blob = await zip.generateAsync({ type: "blob" });
@@ -695,6 +940,7 @@ async function handleUploadNext() {
     const fileInput = document.querySelector('.upload-area input[type="file"]');
 
     if (!fileInput?.files.length) {
+        applyManualTemplates();
         showStep(1);
         setAIStatus("Manual builder selected. You can complete the fields yourself.", "manual");
         return;
@@ -998,14 +1244,14 @@ function applyExtractedData(data) {
         const field = document.querySelector(`[data-field="${name}"]`);
         if (field && !field.value && typeof value === "string") {
             const cleanedValue = name === "deliverables"
-                ? cleanDeliverables()
+                ? standardizeDeliverables(value)
                 : name === "projectScope"
-                    ? formatProjectScope(value)
+                    ? standardizeProjectScope(value)
                 : name === "projectName"
                     ? cleanProjectName(value)
                     : cleanExtractedText(value);
             field.value = name === "projectSummary"
-                ? formatProjectSummary(cleanedValue)
+                ? standardizeProjectSummary(cleanedValue)
                 : cleanedValue;
         }
     });
@@ -1571,5 +1817,72 @@ function formatTimelineDate(value) {
     if (Number.isNaN(date.getTime())) return text;
 
     return `${String(date.getUTCDate()).padStart(2, "0")}-${months[date.getUTCMonth()]}-${date.getUTCFullYear()}`;
+
+}
+
+function standardizeProjectScope(value) {
+
+    return standardizeCategorizedText(value, [
+        "Network",
+        "Internet",
+        "Information Security",
+        "BC/DR",
+        "Tools & Applications",
+        "Voice Solution",
+        "Deskside",
+        "Others"
+    ]);
+
+}
+
+function standardizeDeliverables(value) {
+
+    return standardizeCategorizedText(value, [
+        "Network",
+        "Network Security",
+        "Server",
+        "IT Ops",
+        "Voice and Telephony",
+        "Others"
+    ]);
+
+}
+
+function standardizeCategorizedText(value, headings) {
+
+    const sourceLines = cleanExtractedText(String(value || ""))
+        .split(/\r?\n/)
+        .map(line => line.trim());
+    const normalizedHeadings = headings.map(heading => normalizeForSourceMatch(heading));
+
+    return headings.map((heading, headingIndex) => {
+        const headingPosition = sourceLines.findIndex(line => {
+            const content = line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim();
+            return normalizeForSourceMatch(content) === normalizedHeadings[headingIndex];
+        });
+        const nextHeadingPositions = normalizedHeadings
+            .map((normalized, index) => index > headingIndex
+                ? sourceLines.findIndex((line, lineIndex) => lineIndex > headingPosition
+                    && normalizeForSourceMatch(line.replace(/^(?:[-*]|\u2022)\s*/, "").replace(/:$/, "").trim()) === normalized)
+                : -1)
+            .filter(position => position >= 0);
+        const endPosition = nextHeadingPositions.length ? Math.min(...nextHeadingPositions) : sourceLines.length;
+        const details = headingPosition >= 0
+            ? sourceLines.slice(headingPosition + 1, endPosition)
+                .filter(line => line && !/^[-*]\s*$/.test(line) && line.replace(/^[-*]\s*/, "").trim())
+                .map(line => line.replace(/^(?:[-*]|\u2022)\s*/, "").trim())
+                .slice(0, 3)
+            : [];
+        const detailLines = details.map(detail => `- ${detail}`);
+        while (detailLines.length < 2) detailLines.push("-");
+
+        return [`${heading}:`, ...detailLines].join("\n");
+    }).join("\n\n");
+
+}
+
+function standardizeProjectSummary(value) {
+
+    return formatProjectSummary(String(value || ""));
 
 }
